@@ -2,14 +2,44 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+/* MUI */
 import {
-    Grid,
-    List,
-    TrendingUp,
-    BookOpen,
-    Users,
-    Award,
-} from "lucide-react";
+    Box,
+    Card,
+    CardContent,
+    CardHeader,
+    Chip,
+    Container,
+    Divider,
+    Grid as Grid,
+    IconButton,
+    InputAdornment,
+    Pagination,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    TextField,
+    ToggleButton,
+    ToggleButtonGroup,
+    Tooltip,
+    Typography,
+    Button,
+    Paper,
+} from "@mui/material";
+
+/* MUI Icons */
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
+import TableRowsRoundedIcon from "@mui/icons-material/TableRowsRounded";
+import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
+import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 
 /* -------------------------------------------------
    Mock Data + Types
@@ -55,7 +85,7 @@ const mockPublications: Publication[] = [
 ];
 
 function searchPublications(filters: SearchFiltersType): Publication[] {
-    const keyword = filters.keyword?.toLowerCase();
+    const keyword = filters.keyword?.toLowerCase().trim();
     return mockPublications.filter(
         (p) =>
             !keyword ||
@@ -65,185 +95,220 @@ function searchPublications(filters: SearchFiltersType): Publication[] {
 }
 
 /* -------------------------------------------------
-   Simple UI Components
+   Small UI Pieces
 ------------------------------------------------- */
-const Button: React.FC<
-    React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "outline"; size?: "sm" }
-> = ({ variant = "default", size, className, ...props }) => {
-    const base = "rounded-md font-medium transition";
-    const variants = {
-        default: "bg-blue-600 text-white hover:bg-blue-700",
-        outline: "border border-gray-300 text-gray-700 hover:bg-gray-50",
-    };
-    const sizes = {
-        sm: "px-3 py-1 text-sm",
-        md: "px-4 py-2",
-    };
+function StatCard({
+                      icon,
+                      value,
+                      label,
+                      color = "primary",
+                  }: {
+    icon: React.ReactNode;
+    value: number | string;
+    label: string;
+    color?: "primary" | "success" | "secondary";
+}) {
     return (
-        <button
-            className={`${base} ${variants[variant]} ${sizes[size || "md"]} ${className || ""}`}
-            {...props}
-        />
+        <Paper
+            elevation={0}
+            sx={(t) => ({
+                p: 2.5,
+                borderRadius: 3,
+                border: `1px solid ${t.palette.divider}`,
+            })}
+        >
+            <Stack spacing={1.25} alignItems="center" textAlign="center">
+                <Box
+                    sx={(t) => ({
+                        width: 40,
+                        height: 40,
+                        borderRadius: 2,
+                        display: "grid",
+                        placeItems: "center",
+                        bgcolor:
+                            color === "success"
+                                ? t.palette.success[50] ?? "rgba(46,125,50,0.08)"
+                                : color === "secondary"
+                                    ? t.palette.secondary[50] ?? "rgba(156,39,176,0.08)"
+                                    : t.palette.primary[50] ?? "rgba(25,118,210,0.08)",
+                        "& svg": {
+                            color:
+                                color === "success"
+                                    ? t.palette.success.main
+                                    : color === "secondary"
+                                        ? t.palette.secondary.main
+                                        : t.palette.primary.main,
+                        },
+                    })}
+                >
+                    {icon}
+                </Box>
+                <Typography variant="h5" fontWeight={700} lineHeight={1.2}>
+                    {value}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {label}
+                </Typography>
+            </Stack>
+        </Paper>
     );
-};
+}
 
-const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({
-                                                                               children,
-                                                                               className,
-                                                                           }) => <div className={`rounded-lg border shadow-sm bg-white ${className}`}>{children}</div>;
-
-const CardHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="border-b p-4">{children}</div>
-);
-
-const CardContent: React.FC<{ children: React.ReactNode; className?: string }> = ({
-                                                                                      children,
-                                                                                      className,
-                                                                                  }) => <div className={`p-4 ${className || ""}`}>{children}</div>;
-
-const CardTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h3 className="font-semibold text-lg">{children}</h3>
-);
-
-/* Pagination */
-const Pagination: React.FC<{
-    currentPage: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, onPageChange }) => (
-    <div className="flex gap-2">
-        {Array.from({ length: totalPages }, (_, i) => (
-            <Button
-                key={i}
-                size="sm"
-                variant={i + 1 === currentPage ? "default" : "outline"}
-                onClick={() => onPageChange(i + 1)}
-            >
-                {i + 1}
-            </Button>
-        ))}
-    </div>
-);
-
-/* SearchFilters */
-const SearchFilters: React.FC<{
-    filters: SearchFiltersType;
-    onFiltersChange: (filters: SearchFiltersType) => void;
-    onSearch: () => void;
-    showAdvanced: boolean;
-    onToggleAdvanced: () => void;
-}> = ({ filters, onFiltersChange, onSearch, showAdvanced, onToggleAdvanced }) => {
+function PublicationCard({
+                             publication,
+                             onView,
+                         }: {
+    publication: Publication;
+    onView: (id: string) => void;
+}) {
     return (
-        <Card>
-            <CardContent className="flex flex-col md:flex-row items-center gap-2">
-                <input
-                    type="text"
-                    value={filters.keyword || ""}
-                    onChange={(e) => onFiltersChange({ ...filters, keyword: e.target.value })}
-                    placeholder="Search publications..."
-                    className="flex-1 border rounded-md px-3 py-2"
-                />
-                <Button onClick={onSearch}>Search</Button>
-                <Button variant="outline" onClick={onToggleAdvanced}>
-                    {showAdvanced ? "Hide Advanced" : "Show Advanced"}
-                </Button>
+        <Card
+            variant="outlined"
+            sx={{
+                borderRadius: 3,
+                "&:hover": { boxShadow: 4, transform: "translateY(-1px)" },
+                transition: "all .2s",
+            }}
+        >
+            <CardContent>
+                <Stack spacing={1.2}>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                        {publication.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        {publication.authors.join(", ")}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <Chip size="small" label={publication.year} />
+                        <Chip
+                            size="small"
+                            label={publication.type}
+                            color={publication.type === "Journal" ? "primary" : "secondary"}
+                            variant="outlined"
+                        />
+                        <Chip
+                            size="small"
+                            label={publication.level}
+                            color={publication.level === "International" ? "success" : "default"}
+                            variant="outlined"
+                        />
+                    </Stack>
+                    <Box>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => onView(publication.id)}
+                            sx={{ borderRadius: 2, mt: 0.5 }}
+                        >
+                            View
+                        </Button>
+                    </Box>
+                </Stack>
             </CardContent>
         </Card>
     );
-};
+}
 
-/* Publication Card */
-const PublicationCard: React.FC<{ publication: Publication; onView: (id: string) => void }> = ({
-                                                                                                   publication,
-                                                                                                   onView,
-                                                                                               }) => (
-    <Card>
-        <CardContent>
-            <h4 className="font-semibold">{publication.title}</h4>
-            <p className="text-sm text-gray-600">{publication.authors.join(", ")}</p>
-            <p className="text-xs text-gray-500">
-                {publication.year} • {publication.type} • {publication.level}
-            </p>
-            <Button size="sm" className="mt-2" onClick={() => onView(publication.id)}>
-                View
-            </Button>
-        </CardContent>
-    </Card>
-);
-
-/* Publication Table */
-const PublicationTable: React.FC<{ publications: Publication[]; onView: (id: string) => void }> = ({
-                                                                                                       publications,
-                                                                                                       onView,
-                                                                                                   }) => (
-    <table className="w-full border text-sm">
-        <thead className="bg-gray-100">
-        <tr>
-            <th className="border px-2 py-1">Title</th>
-            <th className="border px-2 py-1">Authors</th>
-            <th className="border px-2 py-1">Year</th>
-            <th className="border px-2 py-1">Type</th>
-            <th className="border px-2 py-1">Level</th>
-            <th className="border px-2 py-1">Action</th>
-        </tr>
-        </thead>
-        <tbody>
-        {publications.map((p) => (
-            <tr key={p.id}>
-                <td className="border px-2 py-1">{p.title}</td>
-                <td className="border px-2 py-1">{p.authors.join(", ")}</td>
-                <td className="border px-2 py-1">{p.year}</td>
-                <td className="border px-2 py-1">{p.type}</td>
-                <td className="border px-2 py-1">{p.level}</td>
-                <td className="border px-2 py-1">
-                    <Button size="sm" onClick={() => onView(p.id)}>
-                        View
-                    </Button>
-                </td>
-            </tr>
-        ))}
-        </tbody>
-    </table>
-);
+function PublicationTable({
+                              publications,
+                              onView,
+                          }: {
+    publications: Publication[];
+    onView: (id: string) => void;
+}) {
+    return (
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ p: 0 }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 700 }}>Title</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 220 }}>Authors</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 80 }}>Year</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 120 }}>Type</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 140 }}>Level</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 100 }}>Action</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {publications.map((p) => (
+                            <TableRow key={p.id} hover>
+                                <TableCell>{p.title}</TableCell>
+                                <TableCell>
+                                    <Typography variant="body2" color="text.secondary" noWrap>
+                                        {p.authors.join(", ")}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>{p.year}</TableCell>
+                                <TableCell>
+                                    <Chip
+                                        size="small"
+                                        label={p.type}
+                                        color={p.type === "Journal" ? "primary" : "secondary"}
+                                        variant="outlined"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <Chip
+                                        size="small"
+                                        label={p.level}
+                                        color={p.level === "International" ? "success" : "default"}
+                                        variant="outlined"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <Button size="small" variant="contained" onClick={() => onView(p.id)}>
+                                        View
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {publications.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                                    <Typography color="text.secondary">No Publications</Typography>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
 
 /* -------------------------------------------------
-   Main Page Component
+   Main Page
 ------------------------------------------------- */
 export default function PublicHomePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const initialKeyword = useMemo(
-        () => searchParams.get("q") ?? undefined,
-        [searchParams]
-    );
-
+    const initialKeyword = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
     const [filters, setFilters] = useState<SearchFiltersType>({ keyword: initialKeyword });
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
     const [currentPage, setCurrentPage] = useState(1);
-    const [searchResults, setSearchResults] = useState<Publication[]>(mockPublications);
+    const [searchResults, setSearchResults] = useState<Publication[]>(
+        searchPublications({ keyword: initialKeyword })
+    );
     const itemsPerPage = 12;
 
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString());
-        if (filters.keyword && filters.keyword.trim().length > 0) {
-            params.set("q", filters.keyword.trim());
-        } else {
-            params.delete("q");
-        }
+        const kw = (filters.keyword ?? "").trim();
+        if (kw.length > 0) params.set("q", kw);
+        else params.delete("q");
         router.replace(`?${params.toString()}`, { scroll: false });
     }, [filters.keyword, router, searchParams]);
 
     useEffect(() => {
-        const results = searchPublications(filters);
-        setSearchResults(results);
+        setSearchResults(searchPublications(filters));
         setCurrentPage(1);
     }, [filters]);
 
     const handleSearch = () => {
-        const results = searchPublications(filters);
-        setSearchResults(results);
+        setSearchResults(searchPublications(filters));
         setCurrentPage(1);
     };
 
@@ -263,100 +328,168 @@ export default function PublicHomePage() {
     };
 
     return (
-        <div className="space-y-8 p-4">
-            {/* Hero Section */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-8 text-center">
-                <h1 className="text-3xl font-bold mb-4">Publication Management System</h1>
-                <p className="text-lg text-gray-600 mb-6 max-w-2xl mx-auto">
-                    Discover and explore academic publications from our university. Search
-                    through journals, conference papers, and research outputs.
-                </p>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            {/* Hero */}
+            <Card
+                variant="outlined"
+                sx={(t) => ({
+                    borderRadius: 4,
+                    background: `linear-gradient(90deg, ${t.palette.primary.light}11, transparent)`,
+                })}
+            >
+                <CardContent>
+                    <Stack spacing={2} alignItems="center" textAlign="center">
+                        <Typography variant="h4" fontWeight={800}>
+                            Publication Management System
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ maxWidth: 720 }}>
+                            Discover and explore academic publications from our university. Search through
+                            journals, conference papers, and research outputs.
+                        </Typography>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-                    <Card>
-                        <CardContent className="p-4 text-center">
-                            <BookOpen className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                            <div className="text-2xl font-bold">{stats.total}</div>
-                            <div className="text-sm text-gray-500">Publications</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4 text-center">
-                            <Award className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                            <div className="text-2xl font-bold">{stats.international}</div>
-                            <div className="text-sm text-gray-500">International</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4 text-center">
-                            <TrendingUp className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                            <div className="text-2xl font-bold">{stats.journals}</div>
-                            <div className="text-sm text-gray-500">Journals</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4 text-center">
-                            <Users className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-                            <div className="text-2xl font-bold">{stats.conferences}</div>
-                            <div className="text-sm text-gray-500">Conferences</div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+                        <Grid container spacing={2} sx={{ mt: 1, maxWidth: 900 }}>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<AutoStoriesOutlinedIcon />}
+                                    value={stats.total}
+                                    label="Publications"
+                                    color="primary"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<EmojiEventsOutlinedIcon />}
+                                    value={stats.international}
+                                    label="International"
+                                    color="success"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<TrendingUpRoundedIcon />}
+                                    value={stats.journals}
+                                    label="Journals"
+                                    color="primary"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<GroupOutlinedIcon />}
+                                    value={stats.conferences}
+                                    label="Conferences"
+                                    color="secondary"
+                                />
+                            </Grid>
+                        </Grid>
+                        <Button variant="contained" >
+                            Login to Publications Management System
+                        </Button>
+                    </Stack>
+                </CardContent>
+            </Card>
 
-            {/* Search Filters */}
-            <SearchFilters
-                filters={filters}
-                onFiltersChange={setFilters}
-                onSearch={handleSearch}
-                showAdvanced={showAdvancedFilters}
-                onToggleAdvanced={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            />
+            {/* Search & Controls */}
+            <Card
+                variant="outlined"
+                sx={{ mt: 4, borderRadius: 3, backdropFilter: "blur(2px)" }}
+            >
+                <CardContent>
+                    <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems="center">
+                        <TextField
+                            fullWidth
+                            placeholder="Search publications..."
+                            value={filters.keyword ?? ""}
+                            onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSearch();
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchRoundedIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                        <Stack direction="row" gap={1} alignItems="center" flexShrink={0}>
+                            <Button variant="contained" onClick={handleSearch} sx={{ borderRadius: 2 }}>
+                                Search
+                            </Button>
+                            <Tooltip title={showAdvanced ? "Hide advanced filters" : "Show advanced filters"}>
+                                <IconButton
+                                    onClick={() => setShowAdvanced((s) => !s)}
+                                    sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                                >
+                                    <TuneRoundedIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <ToggleButtonGroup
+                                exclusive
+                                size="small"
+                                value={viewMode}
+                                onChange={(_, v) => v && setViewMode(v)}
+                                sx={{
+                                    ml: { md: 1 },
+                                    borderRadius: 2,
+                                    "& .MuiToggleButton-root": { px: 1.5 },
+                                }}
+                            >
+                                <ToggleButton value="cards" aria-label="card view">
+                                    <GridViewRoundedIcon fontSize="small" />
+                                </ToggleButton>
+                                <ToggleButton value="table" aria-label="table view">
+                                    <TableRowsRoundedIcon fontSize="small" />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                        </Stack>
+                    </Stack>
 
-            {/* Results Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-semibold">
-                        {searchResults.length} Publications Found
-                    </h2>
-                    {Object.keys(filters).length > 0 && (
-                        <p className="text-gray-500">
-                            Showing results for your search criteria
-                        </p>
+                    {/* Advanced placeholder */}
+                    {showAdvanced && (
+                        <Box sx={{ mt: 2 }}>
+                            <Divider sx={{ mb: 2 }} />
+                            <Typography variant="body2" color="text.secondary">
+                                (Advanced filters placeholder — you can add year, type, level, faculty, etc.)
+                            </Typography>
+                        </Box>
                     )}
-                </div>
+                </CardContent>
+            </Card>
 
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant={viewMode === "cards" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setViewMode("cards")}
-                    >
-                        <Grid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant={viewMode === "table" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setViewMode("table")}
-                    >
-                        <List className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            {/* Results header */}
+            <Stack
+                direction={{ xs: "column", md: "row" }}
+                alignItems={{ xs: "flex-start", md: "center" }}
+                justifyContent="space-between"
+                sx={{ mt: 3, mb: 1 }}
+                gap={1.5}
+            >
+                <Box>
+                    <Typography variant="h6" fontWeight={700}>
+                        {searchResults.length} Publications Found
+                    </Typography>
+                    {((filters.keyword ?? "").trim().length > 0) && (
+                        <Typography variant="body2" color="text.secondary">
+                            Showing results for: <b>{filters.keyword}</b>
+                        </Typography>
+                    )}
+                </Box>
+            </Stack>
 
             {/* Results */}
             {paginatedResults.length > 0 ? (
                 <>
                     {viewMode === "cards" ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {paginatedResults.map((publication) => (
-                                <PublicationCard
-                                    key={publication.id}
-                                    publication={publication}
-                                    onView={(id) => handleNavigate(`/publication/${id}`)}
-                                />
+                        <Grid container spacing={2}>
+                            {paginatedResults.map((p) => (
+                                <Grid key={p.id} item xs={12} sm={6} md={4}>
+                                    <PublicationCard
+                                        publication={p}
+                                        onView={(id) => handleNavigate(`/publication/${id}`)}
+                                    />
+                                </Grid>
                             ))}
-                        </div>
+                        </Grid>
                     ) : (
                         <PublicationTable
                             publications={paginatedResults}
@@ -365,27 +498,39 @@ export default function PublicHomePage() {
                     )}
 
                     {totalPages > 1 && (
-                        <div className="flex justify-center mt-4">
+                        <Stack alignItems="center" sx={{ mt: 3 }}>
                             <Pagination
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                onPageChange={setCurrentPage}
+                                count={totalPages}
+                                page={currentPage}
+                                onChange={(_, p) => setCurrentPage(p)}
+                                shape="rounded"
+                                color="primary"
                             />
-                        </div>
+                        </Stack>
                     )}
                 </>
             ) : (
-                <Card>
-                    <CardContent className="p-12 text-center">
-                        <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No Publications Found</h3>
-                        <p className="text-gray-500 mb-4">
+                <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent sx={{ py: 8, textAlign: "center" }}>
+                        <AutoStoriesOutlinedIcon
+                            sx={{ fontSize: 48, color: "text.disabled", mb: 1.5 }}
+                        />
+                        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                            No Publications Found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                             Try adjusting your search criteria or browse all publications.
-                        </p>
-                        <Button onClick={() => setFilters({})}>Clear Filters</Button>
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setFilters({ keyword: "" })}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Clear Filters
+                        </Button>
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </Container>
     );
 }
