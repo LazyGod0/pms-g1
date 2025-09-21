@@ -127,10 +127,10 @@ function StatCard({
                         placeItems: "center",
                         bgcolor:
                             color === "success"
-                                ? t.palette.success[50] ?? "rgba(46,125,50,0.08)"
+                                ? "rgba(46,125,50,0.08)"
                                 : color === "secondary"
-                                    ? t.palette.secondary[50] ?? "rgba(156,39,176,0.08)"
-                                    : t.palette.primary[50] ?? "rgba(25,118,210,0.08)",
+                                    ? "rgba(156,39,176,0.08)"
+                                    : "rgba(25,118,210,0.08)",
                         "& svg": {
                             color:
                                 color === "success"
@@ -348,7 +348,7 @@ export default function PublicHomePage() {
                         </Typography>
 
                         <Grid container spacing={2} sx={{ mt: 1, maxWidth: 900 }}>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <StatCard
                                     icon={<AutoStoriesOutlinedIcon />}
                                     value={stats.total}
@@ -356,7 +356,7 @@ export default function PublicHomePage() {
                                     color="primary"
                                 />
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <StatCard
                                     icon={<EmojiEventsOutlinedIcon />}
                                     value={stats.international}
@@ -364,7 +364,7 @@ export default function PublicHomePage() {
                                     color="success"
                                 />
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <StatCard
                                     icon={<TrendingUpRoundedIcon />}
                                     value={stats.journals}
@@ -372,7 +372,7 @@ export default function PublicHomePage() {
                                     color="primary"
                                 />
                             </Grid>
-                            <Grid item xs={6} md={3}>
+                            <Grid size={{ xs: 6, md: 3 }}>
                                 <StatCard
                                     icon={<GroupOutlinedIcon />}
                                     value={stats.conferences}
@@ -381,9 +381,21 @@ export default function PublicHomePage() {
                                 />
                             </Grid>
                         </Grid>
-                        <Button variant="contained" >
-                            Login to Publications Management System
-                        </Button>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                            <Button 
+                                variant="contained" 
+                                onClick={() => handleNavigate('/login')}
+                            >
+                                Login to Publications Management System
+                            </Button>
+                            <Button 
+                                variant="outlined" 
+                                onClick={() => handleNavigate('/admin')}
+                                color="primary"
+                            >
+                                Admin Panel
+                            </Button>
+                        </Stack>
                     </Stack>
                 </CardContent>
             </Card>
@@ -482,7 +494,7 @@ export default function PublicHomePage() {
                     {viewMode === "cards" ? (
                         <Grid container spacing={2}>
                             {paginatedResults.map((p) => (
-                                <Grid key={p.id} item xs={12} sm={6} md={4}>
+                                <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
                                     <PublicationCard
                                         publication={p}
                                         onView={(id) => handleNavigate(`/publication/${id}`)}
