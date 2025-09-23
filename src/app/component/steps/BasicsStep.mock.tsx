@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { Button, Chip, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField } from "@mui/material";
+import { Button, Chip, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField, Autocomplete } from "@mui/material";
 import SectionCard from "@/app/component/publications/SectionCard";
 
 export default function BasicsStep() {
@@ -19,34 +19,49 @@ export default function BasicsStep() {
     return (
         <SectionCard title="Basics">
             <Grid container spacing={2}>
-                <Grid size={{xs:12}}><TextField fullWidth label="Publication Title *" defaultValue="" /></Grid>
-                <Grid size={{xs:12,md:4}}>
+                <Grid size={{ xs: 12 }}><TextField fullWidth label="Publication Title *" defaultValue="" /></Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth>
-                        <InputLabel>Year *</InputLabel>
+                        {/* <InputLabel>Year *</InputLabel>
                         <Select defaultValue="">
                             {["2023", "2024", "2025", "2026"].map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-                        </Select>
+                        </Select> */}
+                        <Autocomplete
+                            disablePortal
+                            options={["2023", "2024", "2025", "2026"]}
+                            renderInput={(params) => <TextField {...params} label="Year" />}
+                        />
                     </FormControl>
                 </Grid>
-                <Grid size={{xs:12,md:4}}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth>
-                        <InputLabel>Type *</InputLabel>
+                        {/* <InputLabel>Type *</InputLabel>
                         <Select defaultValue="">
                             <MenuItem value="Journal">Journal</MenuItem>
                             <MenuItem value="Conference">Conference</MenuItem>
-                        </Select>
+                        </Select> */}
+                        <Autocomplete
+                            disablePortal
+                            options={["Journal", "Conference"]}
+                            renderInput={(params) => <TextField {...params} label="Type *" />}
+                        />
                     </FormControl>
                 </Grid>
-                <Grid size={{xs:12,md:4}}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <FormControl fullWidth>
-                        <InputLabel>Level *</InputLabel>
+                        {/* <InputLabel>Level *</InputLabel>
                         <Select defaultValue="">
                             <MenuItem value="National">National</MenuItem>
                             <MenuItem value="International">International</MenuItem>
-                        </Select>
+                        </Select> */}
+                        <Autocomplete
+                            disablePortal
+                            options={["National", "International"]}
+                            renderInput={(params) => <TextField {...params} label="Level *" />}
+                        />
                     </FormControl>
                 </Grid>
-                <Grid size={{xs:12}}>
+                <Grid size={{ xs: 12 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                         <TextField
                             fullWidth
@@ -63,7 +78,7 @@ export default function BasicsStep() {
                         </Stack>
                     )}
                 </Grid>
-                <Grid size={{xs:12}}><TextField fullWidth label="Abstract *" multiline minRows={4} /></Grid>
+                <Grid size={{ xs: 12 }}><TextField fullWidth label="Abstract *" multiline minRows={4} /></Grid>
             </Grid>
         </SectionCard>
     );
