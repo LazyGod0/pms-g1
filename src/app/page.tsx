@@ -125,12 +125,12 @@ function StatCard({
             borderRadius: 2,
             display: "grid",
             placeItems: "center",
-            bgcolor: "red",
-              // color === "success"
-              //   ? t.palette.success[50] ?? "rgba(46,125,50,0.08)"
-              //   : color === "secondary"
-              //     ? t.palette.secondary[50] ?? "rgba(156,39,176,0.08)"
-              //     : t.palette.primary[50] ?? "rgba(25,118,210,0.08)",
+            bgcolor:
+              color === "success"
+                ? t.palette.success[50] ?? "rgba(46,125,50,0.08)"
+                : color === "secondary"
+                  ? t.palette.secondary[50] ?? "rgba(156,39,176,0.08)"
+                  : t.palette.primary[50] ?? "rgba(25,118,210,0.08)",
             "& svg": {
               color:
                 color === "success"
