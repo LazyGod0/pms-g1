@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import { User, getRoleLabel, getRoleColor, getStatusColor } from "./user-types";
+import { User, getRoleLabel, getRoleColor } from "./user-types";
 
 interface UserTableProps {
     users: User[];
@@ -36,7 +36,6 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                             <TableCell sx={{ fontWeight: 700, width: 250 }}>อีเมล</TableCell>
                             <TableCell sx={{ fontWeight: 700, width: 120 }}>บทบาท</TableCell>
                             <TableCell sx={{ fontWeight: 700, width: 200 }}>คณะ/แผนก</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 100 }}>สถานะ</TableCell>
                             <TableCell sx={{ fontWeight: 700, width: 140 }}>จัดการ</TableCell>
                         </TableRow>
                     </TableHead>
@@ -70,14 +69,6 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        size="small"
-                                        label={user.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน"}
-                                        color={getStatusColor(user.status)}
-                                        variant="outlined"
-                                    />
-                                </TableCell>
-                                <TableCell>
                                     <Stack direction="row" spacing={0.5}>
                                         <IconButton
                                             size="small"
@@ -99,7 +90,7 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                         ))}
                         {users.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                                <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
                                     <Typography color="text.secondary">ไม่พบข้อมูลผู้ใช้</Typography>
                                 </TableCell>
                             </TableRow>

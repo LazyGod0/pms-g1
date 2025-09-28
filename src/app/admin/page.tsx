@@ -3,17 +3,18 @@
 import React, { useMemo, useState } from "react";
 import { Container } from "@mui/material";
 import Dashboard from "./components/dashboard-admin";
+import DashboardExtras from "./components/dashboard-extras";
 import ManageUsersComponent from "./components/manage-users";
-import { User, mockUsers } from "./components/user-types";
+import { User, role } from "@/types/user";
 
 export default function ManageUsers() {
-    const [users, setUsers] = useState<User[]>(mockUsers);
+    const [users, setUsers] = useState<User[]>([]);
 
     const stats = useMemo(() => ({
         total: users.length,
-        active: users.filter(u => u.status === "active").length,
-        lecturers: users.filter(u => u.role === "lecturer").length,
-        students: users.filter(u => u.role === "student").length,
+        lecturers: users.filter((u: User) => u.role === role.lecturer).length,
+        admins: users.filter((u: User) => u.role === role.admin).length,
+        staff: users.filter((u: User) => u.role === role.staff).length,
     }), [users]);
 
     const handleAddUser = () => {
@@ -24,6 +25,7 @@ export default function ManageUsers() {
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Dashboard stats={stats} onAddUser={handleAddUser} />
+            <DashboardExtras onAddUser={handleAddUser} />
             <ManageUsersComponent />
         </Container>
     );

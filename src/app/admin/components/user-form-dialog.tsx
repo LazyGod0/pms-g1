@@ -32,11 +32,10 @@ export default function UserFormDialog({
     const [formData, setFormData] = useState<UserFormData>({
         name: "",
         email: "",
-        role: "student",
+        role: "staff" as UserRole,
         faculty: "",
         department: "",
         phone: "",
-        status: "active",
         password: "",
     });
 
@@ -49,17 +48,15 @@ export default function UserFormDialog({
                 faculty: user.faculty || "",
                 department: user.department || "",
                 phone: user.phone || "",
-                status: user.status,
             });
         } else {
             setFormData({
                 name: "",
                 email: "",
-                role: "student",
+                role: "staff" as UserRole,
                 faculty: "",
                 department: "",
                 phone: "",
-                status: "active",
                 password: "",
             });
         }
@@ -110,7 +107,6 @@ export default function UserFormDialog({
                                 label="บทบาท"
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                             >
-                                <MenuItem value="student">นักศึกษา</MenuItem>
                                 <MenuItem value="lecturer">อาจารย์</MenuItem>
                                 <MenuItem value="staff">เจ้าหน้าที่</MenuItem>
                                 <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
@@ -134,17 +130,6 @@ export default function UserFormDialog({
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         />
-                        <FormControl fullWidth>
-                            <InputLabel>สถานะ</InputLabel>
-                            <Select
-                                value={formData.status}
-                                label="สถานะ"
-                                onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "inactive" })}
-                            >
-                                <MenuItem value="active">ใช้งาน</MenuItem>
-                                <MenuItem value="inactive">ไม่ใช้งาน</MenuItem>
-                            </Select>
-                        </FormControl>
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}>

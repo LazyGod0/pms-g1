@@ -32,7 +32,6 @@ const ManageUsersComponent: React.FC = () => {
     const [filters, setFilters] = useState<SearchFiltersType>({
         keyword: "",
         role: "",
-        status: "",
     });
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -315,7 +314,7 @@ const ManageUsersComponent: React.FC = () => {
                 {/* Content */}
                 {filteredUsers.length === 0 && !loading ? (
                     <EmptyState 
-                        onClearFilters={() => setFilters({ keyword: "", role: "", status: "" })}
+                        onClearFilters={() => setFilters({ keyword: "", role: "" })}
                         onAddUser={handleAddUser} 
                     />
                 ) : (

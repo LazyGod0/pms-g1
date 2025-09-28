@@ -146,21 +146,6 @@ export default function SearchControls({
                     <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
                     <MenuItem value="lecturer">อาจารย์</MenuItem>
                     <MenuItem value="staff">เจ้าหน้าที่</MenuItem>
-                    <MenuItem value="student">นักศึกษา</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>สถานะ</InputLabel>
-                  <Select
-                    value={filters.status ?? ""}
-                    label="สถานะ"
-                    onChange={(e) => onFiltersChange({ ...filters, status: e.target.value as "active" | "inactive" | "" })}
-                  >
-                    <MenuItem value="">ทั้งหมด</MenuItem>
-                    <MenuItem value="active">ใช้งาน</MenuItem>
-                    <MenuItem value="inactive">ไม่ใช้งาน</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
