@@ -39,10 +39,24 @@ import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import { useMemo, useState, MouseEvent } from "react";
+import { useMemo, useState, MouseEvent, useEffect } from "react";
 import dayjs from "dayjs";
 
-type Pub = {
+// --- FIREBASE ---
+import { auth, db } from "@/configs/firebase-config"; // <-- adjust if your exports differ
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+
+// ---------------- Types ----------------
+export type Pub = {
   id: string;
   title: string;
   authors: { name: string; tag?: "External" | "Internal" }[];
@@ -55,25 +69,10 @@ type Pub = {
   faculty?: string;
 };
 
-const MOCK_DATA: Pub[] = [
-  {
-    id: "p1",
-    title: "Deep Learning for Coral Reef Monitoring",
-    authors: [
-      { name: "Dr. Niran Sookchai" },
-      { name: "Dr. Amanda Tan", tag: "External" },
-    ],
-    year: 2023,
-    type: "Journal",
-    level: "International",
-    status: "Approved",
-    doi: "10.1000/coral.2023.01",
-    updatedAt: "2023-04-05",
-    faculty: "Faculty of Science",
-  },
-];
-
-const statusColor: Record<Pub["status"], "default" | "warning" | "success" | "error" | "info"> = {
+const statusColor: Record<
+  Pub["status"],
+  "default" | "warning" | "success" | "error" | "info"
+> = {
   Draft: "default",
   Pending: "warning",
   "Needs Fix": "info",
@@ -103,15 +102,122 @@ function StatusChip({ status }: { status: Pub["status"] }) {
   );
 }
 
+// ---------- Helpers to map Firestore -> UI ----------
+const toTitle = (s?: string) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : undefined;
+
+function tsToISO(v: any): string | undefined {
+  // accept Firestore Timestamp, Date, string
+  if (!v) return undefined;
+  if (v instanceof Timestamp) return v.toDate().toISOString();
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") return new Date(v).toISOString();
+  return undefined;
+}
+
+function mapSubmissionToPub(
+  id: string,
+  d: any,
+  userDoc?: any // for faculty (optional)
+): Pub {
+  const basics = d?.basics ?? {};
+  const identifiers = d?.identifiers ?? {};
+  const statusRaw: string = d?.status ?? "draft";
+
+  const authors = Array.isArray(d?.authors)
+    ? d.authors.map((a: any) => ({
+        name: a?.name ?? "",
+        tag:
+          a?.authorType === "External"
+            ? "External"
+            : a?.authorType === "Internal"
+            ? "Internal"
+            : undefined,
+      }))
+    : [];
+
+  const updatedAt =
+    tsToISO(d?.reviewedAt) ??
+    tsToISO(d?.submittedAt) ??
+    tsToISO(d?.createdAt) ??
+    new Date().toISOString();
+
+  return {
+    id,
+    title: basics?.title ?? "(Untitled)",
+    authors,
+    year: Number(basics?.year ?? new Date().getFullYear()),
+    type: (toTitle(basics?.type) as Pub["type"]) ?? "Conference",
+    level: (toTitle(basics?.level) as Pub["level"]) ?? "National",
+    status: (toTitle(statusRaw) as Pub["status"]) ?? "Draft",
+    doi: identifiers?.doi || undefined,
+    updatedAt,
+    faculty: userDoc?.faculty || undefined,
+  };
+}
+
 export default function PublicationsPage() {
-  // filters
-  const [query, setQuery] = useState("");
+  // -------- data from Firestore --------
+  const [data, setData] = useState<Pub[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | undefined>();
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // if (!user) {
+      //   setData([]);
+      //   setLoading(false);
+      //   setErr("Not signed in.");
+      //   return;
+      // }
+      try {
+        setLoading(true);
+        setErr(undefined);
+
+        // /users/{uid}
+        const FIXED_UID = "TUtYsDTbvEOy50N1AVhe";
+        const userRef = doc(db, "users", FIXED_UID);
+        const userSnap = await getDoc(userRef);
+        const userDoc = userSnap.exists() ? userSnap.data() : undefined;
+
+        // /users/{uid}/submissions ordered
+        const subCol = collection(db, "users", FIXED_UID, "submissions");
+        const q = query(
+          subCol,
+          orderBy("basics.year", "desc"),
+          orderBy("createdAt", "desc")
+        );
+        const snap = await getDocs(q);
+
+        const pubs = snap.docs.map((s) =>
+          mapSubmissionToPub(s.id, s.data(), userDoc)
+        );
+        setData(pubs);
+      } catch (e: any) {
+        setErr(e?.message ?? "Failed to load");
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  // -------- filters --------
+  const [queryTxt, setQueryTxt] = useState("");
   const [year, setYear] = useState<string>("All Years");
   const [type, setType] = useState<string>("All Types");
   const [level, setLevel] = useState<string>("All Levels");
 
   // tabs
-  type TabKey = "All" | "Draft" | "Pending" | "Needs Fix" | "Approved" | "Rejected";
+  type TabKey =
+    | "All"
+    | "Draft"
+    | "Pending"
+    | "Needs Fix"
+    | "Approved"
+    | "Rejected";
   const [tab, setTab] = useState<TabKey>("All");
 
   // menu
@@ -122,46 +228,54 @@ export default function PublicationsPage() {
   const isSm = useMediaQuery("(max-width:900px)");
 
   const filtered = useMemo(() => {
-    return MOCK_DATA.filter((p) => {
+    return data.filter((p) => {
       const matchTab = tab === "All" ? true : p.status === tab;
       const matchQuery =
-        query.trim() === "" ||
+        queryTxt.trim() === "" ||
         [p.title, p.authors.map((a) => a.name).join(", "), p.doi]
           .join(" ")
           .toLowerCase()
-          .includes(query.toLowerCase());
+          .includes(queryTxt.toLowerCase());
       const matchYear = year === "All Years" || String(p.year) === year;
       const matchType = type === "All Types" || p.type === type;
       const matchLevel = level === "All Levels" || p.level === level;
       return matchTab && matchQuery && matchYear && matchType && matchLevel;
     });
-  }, [query, year, type, level, tab]);
+  }, [data, queryTxt, year, type, level, tab]);
 
-  // counts for tabs
   const counts = useMemo(
     () =>
-      MOCK_DATA.reduce(
+      data.reduce(
         (acc, p) => {
           acc.All += 1;
           acc[p.status as TabKey] += 1;
           return acc;
         },
-        { All: 0, Draft: 0, Pending: 0, "Needs Fix": 0, Approved: 0, Rejected: 0 } as Record<TabKey, number>
+        {
+          All: 0,
+          Draft: 0,
+          Pending: 0,
+          "Needs Fix": 0,
+          Approved: 0,
+          Rejected: 0,
+        } as Record<TabKey, number>
       ),
-    []
+    [data]
   );
 
   const clearFilters = () => {
-    setQuery("");
+    setQueryTxt("");
     setYear("All Years");
     setType("All Types");
     setLevel("All Levels");
   };
 
   const years = useMemo(() => {
-    const ys = Array.from(new Set(MOCK_DATA.map((m) => m.year))).sort((a, b) => b - a);
+    const ys = Array.from(new Set(data.map((m) => m.year))).sort(
+      (a, b) => b - a
+    );
     return ["All Years", ...ys.map(String)];
-  }, []);
+  }, [data]);
 
   const types = ["All Types", "Journal", "Conference", "Book"];
   const levels = ["All Levels", "International", "National", "Local"];
@@ -169,7 +283,13 @@ export default function PublicationsPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 2 }}
+      >
         <Box>
           <Typography variant="h4" fontWeight={800}>
             My Publications
@@ -190,12 +310,16 @@ export default function PublicationsPage() {
 
       {/* Filters */}
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, mb: 2 }}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems="stretch"
+        >
           <TextField
             placeholder="Search publications..."
             fullWidth
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={queryTxt}
+            onChange={(e) => setQueryTxt(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -252,7 +376,12 @@ export default function PublicationsPage() {
             </Select>
           </FormControl>
 
-          <Button onClick={clearFilters} variant="outlined" color="inherit" sx={{ whiteSpace: "nowrap" }}>
+          <Button
+            onClick={clearFilters}
+            variant="outlined"
+            color="inherit"
+            sx={{ whiteSpace: "nowrap" }}
+          >
             Clear
           </Button>
         </Stack>
@@ -267,10 +396,16 @@ export default function PublicationsPage() {
           scrollButtons="auto"
           sx={{
             px: 1,
-            "& .MuiTab-root": { textTransform: "none", fontWeight: 700, minHeight: 48 },
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 700,
+              minHeight: 48,
+            },
           }}
         >
-          {(["All", "Draft", "Pending", "Needs Fix", "Approved", "Rejected"] as TabKey[]).map((k) => (
+          {(
+            ["All", "Draft", "Pending", "Needs Fix", "Approved", "Rejected"] as TabKey[]
+          ).map((k) => (
             <Tab
               key={k}
               value={k}
@@ -301,68 +436,80 @@ export default function PublicationsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.map((p) => (
-              <TableRow key={p.id} hover>
-                <TableCell>
-                  <Typography fontWeight={700} sx={{ mb: 0.5 }}>
-                    {p.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {p.faculty}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ minWidth: 220 }}>
-                  <Stack spacing={0.5}>
-                    {p.authors.map((a) => (
-                      <Stack key={a.name} direction="row" spacing={1} alignItems="center">
-                        <Typography variant="body2">{a.name}</Typography>
-                        {a.tag && <Chip size="small" variant="outlined" label={a.tag} />}
-                      </Stack>
-                    ))}
-                  </Stack>
-                </TableCell>
-                <TableCell>{p.year}</TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Chip size="small" label={p.type} />
-                    <Chip size="small" label={p.level} />
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <StatusChip status={p.status} />
-                </TableCell>
-                <TableCell>
-                  {p.doi ? (
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <LinkOutlinedIcon fontSize="small" />
-                      <Typography
-                        variant="body2"
-                        component="a"
-                        href="#"
-                        onClick={(e) => e.preventDefault()}
-                        sx={{ textDecoration: "none" }}
-                      >
-                        {p.doi}
-                      </Typography>
-                    </Stack>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
-                <TableCell>{dayjs(p.updatedAt).format("MMM D, YYYY")}</TableCell>
-                <TableCell align="right" width={40}>
-                  <Tooltip title="More">
-                    <IconButton onClick={openMenu}>
-                      <MoreHorizRoundedIcon />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
+            {loading && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                  <Typography color="text.secondary">No results</Typography>
+                  <Typography color="text.secondary">Loading…</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading &&
+              filtered.map((p) => (
+                <TableRow key={p.id} hover>
+                  <TableCell>
+                    <Typography fontWeight={700} sx={{ mb: 0.5 }}>
+                      {p.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {p.faculty}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 220 }}>
+                    <Stack spacing={0.5}>
+                      {p.authors.map((a) => (
+                        <Stack key={a.name} direction="row" spacing={1} alignItems="center">
+                          <Typography variant="body2">{a.name}</Typography>
+                          {a.tag && <Chip size="small" variant="outlined" label={a.tag} />}
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>{p.year}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Chip size="small" label={p.type} />
+                      <Chip size="small" label={p.level} />
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip status={p.status} />
+                  </TableCell>
+                  <TableCell>
+                    {p.doi ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <LinkOutlinedIcon fontSize="small" />
+                        <Typography
+                          variant="body2"
+                          component="a"
+                          href="#"
+                          onClick={(e) => e.preventDefault()}
+                          sx={{ textDecoration: "none" }}
+                        >
+                          {p.doi}
+                        </Typography>
+                      </Stack>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell>{dayjs(p.updatedAt).format("MMM D, YYYY")}</TableCell>
+                  <TableCell align="right" width={40}>
+                    <Tooltip title="More">
+                      <IconButton onClick={openMenu}>
+                        <MoreHorizRoundedIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!loading && filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <Typography color={err ? "error" : "text.secondary"}>
+                    {err ?? "No results"}
+                  </Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -375,11 +522,20 @@ export default function PublicationsPage() {
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <StatCard label="Total Shown" value={filtered.length} />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-          <StatCard label="Journals" value={filtered.filter((p) => p.type === "Journal").length} />
+          <StatCard
+            label="Journals"
+            value={filtered.filter((p) => p.type === "Journal").length}
+          />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-          <StatCard label="International" value={filtered.filter((p) => p.level === "International").length} />
+          <StatCard
+            label="International"
+            value={filtered.filter((p) => p.level === "International").length}
+          />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-          <StatCard label="Approved" value={filtered.filter((p) => p.status === "Approved").length} />
+          <StatCard
+            label="Approved"
+            value={filtered.filter((p) => p.status === "Approved").length}
+          />
         </Stack>
       </Paper>
 

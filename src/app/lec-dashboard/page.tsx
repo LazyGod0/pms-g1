@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import Grid from '@mui/material/Grid'; // keep your Grid import as-is
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
@@ -22,7 +22,20 @@ import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import DraftsOutlinedIcon from '@mui/icons-material/DraftsOutlined';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
-import { FC } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
+
+// --- Firebase ---
+import { auth, db } from '@/configs/firebase-config'; // <-- adjust if your exports differ
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  limit,
+  Timestamp,
+} from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+
 type Activity = {
   id: string;
   title: string;
@@ -31,37 +44,31 @@ type Activity = {
   status: 'approved' | 'submitted' | 'draft';
 };
 
-const activities: Activity[] = [
-  {
-    id: '1',
-    title: 'Deep Learning for Coral Reef Monitoring',
-    subtitle: 'Your publication has been approved',
-    date: 'Dec 7, 2024',
-    status: 'approved',
-  },
-  {
-    id: '2',
-    title: 'Edge AI for Smart Campus',
-    subtitle: 'Publication submitted for review',
-    date: 'Dec 6, 2024',
-    status: 'submitted',
-  },
-  {
-    id: '3',
-    title: 'IoT Security Framework',
-    subtitle: 'Draft saved with updates',
-    date: 'Dec 5, 2024',
-    status: 'draft',
-  },
-];
+type SubmissionDoc = {
+  basics?: {
+    title?: string;
+    year?: number | string;
+    type?: 'Journal' | 'Conference' | 'Book' | string;
+    level?: 'International' | 'National' | 'Local' | string;
+  };
+  status?: 'Draft' | 'Pending' | 'Needs Fix' | 'Approved' | 'Rejected' | string;
+  createdAt?: Timestamp;
+  submittedAt?: Timestamp;
+  reviewedAt?: Timestamp;
+};
 
-const trend = [
-  { year: 2020, value: 1, max: 2 },
-  { year: 2021, value: 2, max: 2 },
-  { year: 2022, value: 1, max: 2 },
-  { year: 2023, value: 2, max: 2 },
-  { year: 2024, value: 1, max: 2 },
-];
+type TrendPoint = { year: number; value: number; max: number };
+
+const titleCase = (s?: string) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : undefined;
+
+function tsToDate(x?: any): Date | undefined {
+  if (!x) return undefined;
+  if (x instanceof Timestamp) return x.toDate();
+  if (x instanceof Date) return x;
+  if (typeof x === 'string') return new Date(x);
+  return undefined;
+}
 
 function StatCard({
   icon,
@@ -188,7 +195,7 @@ function TrendRow({
   value: number;
   max: number;
 }) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <Box sx={{ width: 52 }}>
@@ -222,11 +229,131 @@ function TrendRow({
 }
 
 export default function DashboardPage() {
-  const draft = 0;
-  const pending = 0;
-  const needsFix = 0;
-  const approved = 1;
-  const rejected = 0;
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [needsFix, setNeedsFix] = useState(0);
+  const [approved, setApproved] = useState(0);
+  const [rejected, setRejected] = useState(0);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
+  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
+  const [facultyLine, setFacultyLine] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // if (!user) {
+      //   setLoading(false);
+      //   setActivities([]);
+      //   return;
+      // }
+
+      // setDisplayName(user.displayName ?? undefined);
+
+      try {
+        setLoading(true);
+
+        // Read this lecturer's submissions
+        const FIXED_UID = "TUtYsDTbvEOy50N1AVhe";
+        const subCol = collection(db, 'users', FIXED_UID, 'submissions');
+
+        // For activities list, we need most recent first
+        const qRecent = query(subCol, orderBy('createdAt', 'desc'), limit(10));
+        const snap = await getDocs(qRecent);
+
+        let cDraft = 0,
+          cPending = 0,
+          cNeedsFix = 0,
+          cApproved = 0,
+          cRejected = 0;
+
+        const act: Activity[] = [];
+        const perYear: Record<number, number> = {};
+
+        const nowYear = new Date().getFullYear();
+        const windowYears = Array.from({ length: 5 }, (_, i) => nowYear - 4 + i);
+
+        snap.docs.forEach((d) => {
+          const data = d.data() as SubmissionDoc;
+
+          const s = titleCase(data.status) as
+            | 'Draft'
+            | 'Pending'
+            | 'Needs Fix'
+            | 'Approved'
+            | 'Rejected'
+            | undefined;
+
+          if (s === 'Draft') cDraft++;
+          else if (s === 'Pending') cPending++;
+          else if (s === 'Needs Fix') cNeedsFix++;
+          else if (s === 'Approved') cApproved++;
+          else if (s === 'Rejected') cRejected++;
+
+          // Activities: pick a date preferring reviewedAt > submittedAt > createdAt
+          const dt =
+            tsToDate(data.reviewedAt) ||
+            tsToDate(data.submittedAt) ||
+            tsToDate(data.createdAt) ||
+            new Date();
+
+          const statusForActivity: Activity['status'] =
+            s === 'Approved'
+              ? 'approved'
+              : s === 'Draft'
+              ? 'draft'
+              : 'submitted';
+
+          act.push({
+            id: d.id,
+            title: data.basics?.title || '(Untitled)',
+            subtitle:
+              s === 'Approved'
+                ? 'Your publication has been approved'
+                : s === 'Needs Fix'
+                ? 'Changes requested'
+                : s === 'Pending'
+                ? 'Publication submitted for review'
+                : s === 'Rejected'
+                ? 'Publication was rejected'
+                : 'Draft saved',
+            date: dt.toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: '2-digit',
+            }),
+            status: statusForActivity,
+          });
+
+          // Trend counts by basics.year
+          const by = Number(data.basics?.year ?? NaN);
+          if (!Number.isNaN(by) && windowYears.includes(by)) {
+            perYear[by] = (perYear[by] ?? 0) + 1;
+          }
+        });
+
+        // Fill 5-year window, compute max
+        const maxVal = Math.max(1, ...Array.from({ length: 5 }, (_, i) => perYear[nowYear - 4 + i] ?? 0));
+        const trendArr: TrendPoint[] = Array.from({ length: 5 }, (_, i) => {
+          const y = nowYear - 4 + i;
+          const v = perYear[y] ?? 0;
+          return { year: y, value: v, max: maxVal };
+        });
+
+        setDraft(cDraft);
+        setPending(cPending);
+        setNeedsFix(cNeedsFix);
+        setApproved(cApproved);
+        setRejected(cRejected);
+        setActivities(act);
+        setTrend(trendArr);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   return (
     <Box sx={{ py: 4, bgcolor: 'white', minHeight: '100vh' }}>
@@ -234,15 +361,16 @@ export default function DashboardPage() {
         {/* Top bar */}
         <Stack direction="row" alignItems="start" justifyContent="space-between" sx={{ mb: 3 }}>
           <Box>
-            <Typography variant="h5" fontWeight={800} color='black'>
-              Welcome back, Dr. Sookchai
+            <Typography variant="h5" fontWeight={800} color="black">
+              {`Welcome back${displayName ? `, ${displayName}` : ''}`}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Faculty of Science, Computer Science Department
+              {/* If you later read /users/{uid} you can place Faculty/Dept info here */}
+              Faculty dashboard
             </Typography>
           </Box>
 
-          <Button
+        <Button
             variant="contained"
             startIcon={<AddRoundedIcon />}
             sx={{ borderRadius: 2 }}
@@ -317,6 +445,11 @@ export default function DashboardPage() {
               </Box>
               <Divider />
               <Box>
+                {activities.length === 0 && !loading && (
+                  <Typography sx={{ px: 2, py: 3 }} color="text.secondary">
+                    No activity yet
+                  </Typography>
+                )}
                 {activities.map((a, idx) => (
                   <Box key={a.id}>
                     <ActivityItem item={a} />
@@ -366,15 +499,15 @@ export default function DashboardPage() {
                     This Year
                   </Typography>
                   <Typography variant="h6" fontWeight={800}>
-                    1
+                    {trend.find((x) => x.year === new Date().getFullYear())?.value ?? 0}
                   </Typography>
                 </Stack>
                 <Stack spacing={0.5} alignItems="center">
                   <Typography variant="caption" color="text.secondary">
-                    Total
+                    Total (5 yrs)
                   </Typography>
                   <Typography variant="h6" fontWeight={800}>
-                    1
+                    {trend.reduce((sum, x) => sum + x.value, 0)}
                   </Typography>
                 </Stack>
               </Stack>
