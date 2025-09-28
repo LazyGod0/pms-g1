@@ -1,96 +1,273 @@
 "use client";
+
 import * as React from "react";
 import {
   Box,
   Button,
-  Grid,
-  Stack,
+  Stepper,
   Step,
   StepLabel,
-  Stepper,
+  Stack,
+  Paper,
+  Snackbar,
+  Alert,
   Typography,
+  Grid,
 } from "@mui/material";
+
+import BasicsStep from "@/app/component/steps/BasicsStep";
+import AuthorsStep from "@/app/component/steps/AuthorsStep";
+import IdentifiersStep from "@/app/component/steps/IdentifiersStep";
+import AttachmentsStep from "@/app/component/steps/AttachmentsStep";
 import SidebarSummary from "@/app/component/publications/SidebarSummary";
-import BasicsStep from "@/app/component/steps/BasicsStep.mock";
-import AuthorsStep from "@/app/component/steps/AuthorsStep.mock";
-import IdentifiersStep from "@/app/component/steps/IdentifiersStep.mock";
-import AttachmentsStep from "@/app/component/steps/AttachmentsStep.mock";
-import { PROGRESS_BY_STEP } from "@/app/component/publications/mock";
 
-import { useRouter } from "next/navigation";
+import { SubmissionForm } from "@/types/submission";
+import { auth, db } from "@/configs/firebase-config"; // <-- ปรับให้ตรงโปรเจกต์คุณถ้าพาธต่าง
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getNextTempId } from "@/libs/firestore-utils";
 
-export default function PublicationWizardPage() {
-  const steps = ["Basics", "Authors", "Identifiers", "Attachments"];
+const steps = ["Basics", "Authors", "Identifiers", "Attachments"];
+
+// ---------- initial form (เพิ่ม url/references ใน identifiers) ----------
+const initialForm: SubmissionForm = {
+  basics: { title: "", type: "", level: "", year: "", abstract: "", keywords: [] },
+  authors: [],
+  identifiers: { doi: "", url: "", references: [] },
+  attachments: { files: [] },
+};
+
+type SnackState = {
+  open: boolean;
+  msg: string;
+  sev: "success" | "error" | "warning" | "info";
+};
+
+// ---------- types สำหรับ error (เพิ่ม abstract, ตัด keywords ออก) ----------
+type BasicsErrors = Partial<{
+  title: string;
+  type: string;
+  level: string;
+  year: string;
+  abstract: string;
+}>;
+type AuthorRowError = { name?: string; affiliation?: string; email?: string };
+type AuthorsErrors = Record<number, AuthorRowError>;
+// ------------------------------------------------
+
+export default function LecNewSubmitPage() {
   const [activeStep, setActiveStep] = React.useState(0);
-  const router = useRouter();
+  const [form, setForm] = React.useState<SubmissionForm>(initialForm);
+  const [snack, setSnack] = React.useState<SnackState>({
+    open: false,
+    msg: "",
+    sev: "success",
+  });
 
-  const content = [
-    <BasicsStep key={0} />,
-    <AuthorsStep key={1} />,
-    <IdentifiersStep key={2} />,
-    <AttachmentsStep key={3} />,
-  ][activeStep];
+  // ---------- state เก็บ error ----------
+  const [errors, setErrors] = React.useState<{
+    basics?: BasicsErrors;
+    authors?: AuthorsErrors;
+  }>({});
+  // --------------------------------------
 
-  const goNext = () => setActiveStep((s) => Math.min(s + 1, 3));
-  const goPrev = () => setActiveStep((s) => Math.max(s - 1, 0));
+  // setters
+  const setBasics = (next: SubmissionForm["basics"]) =>
+    setForm((p) => ({ ...p, basics: next }));
+  const setAuthors = (next: SubmissionForm["authors"]) =>
+    setForm((p) => ({ ...p, authors: next }));
+  const setIdentifiers = (next: SubmissionForm["identifiers"]) =>
+    setForm((p) => ({ ...p, identifiers: next }));
+  const setAttachments = (next: SubmissionForm["attachments"]) =>
+    setForm((p) => ({ ...p, attachments: next }));
 
-  const onSubmit = () => {
-    alert("Submitted publication");
-    router.push("/");
+  // ---------- ตรวจสเต็ป & เก็บ error (บังคับ abstract, ไม่บังคับ keywords) ----------
+  function validateStepAndCollect(step: number, f: SubmissionForm): boolean {
+    const nextErrors: typeof errors = {};
+
+    if (step === 0) {
+      const e: BasicsErrors = {};
+      if (!f.basics.title) e.title = "จำเป็น";
+      if (!f.basics.type) e.type = "จำเป็น";
+      if (!f.basics.level) e.level = "จำเป็น";
+      if (!f.basics.year) e.year = "จำเป็น";
+      if (!f.basics.abstract) e.abstract = "จำเป็น";
+      if (Object.keys(e).length) nextErrors.basics = e;
+    }
+
+    if (step === 1) {
+      const e: AuthorsErrors = {};
+      if (!f.authors?.length) e[0] = { name: "ต้องมีผู้แต่งอย่างน้อย 1 คน" };
+      f.authors?.forEach((a, i) => {
+        const row: AuthorRowError = {};
+        if (!a.name) row.name = "จำเป็น";
+        if (!a.affiliation) row.affiliation = "จำเป็น";
+        if (!a.email) row.email = "จำเป็น";
+        if (Object.keys(row).length) e[i] = row;
+      });
+      if (Object.keys(e).length) nextErrors.authors = e;
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+  // ----------------------------------------------------------------------
+
+  const onNext = () => {
+    if (!validateStepAndCollect(activeStep, form)) {
+      setSnack({ open: true, msg: "กรอกข้อมูลให้ครบก่อนดำเนินการต่อ", sev: "warning" });
+      return;
+    }
+    setActiveStep((s) => Math.min(s + 1, steps.length - 1));
   };
 
-  const isAttachments = activeStep === 3;
+  const onBack = () => setActiveStep((s) => Math.max(0, s - 1));
+
+  const handleSaveDraft = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Please login");
+
+      const newId = await getNextTempId(user.uid);
+      const ref = doc(db, "users", user.uid, "submissions", newId);
+
+      await setDoc(ref, {
+        ...form,
+        status: "draft",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      setSnack({ open: true, msg: `Draft ถูกบันทึกเป็น ${newId}`, sev: "success" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSnack({ open: true, msg: msg || "Save draft ล้มเหลว", sev: "error" });
+    }
+  };
+
+  // ตรวจครบสเต็ปที่บังคับก่อนส่ง (Basics + Authors)
+  const handleSubmit = async () => {
+    const ok0 = validateStepAndCollect(0, form);
+    const ok1 = validateStepAndCollect(1, form);
+    if (!(ok0 && ok1)) {
+      setSnack({ open: true, msg: "กรอกข้อมูลที่บังคับให้ครบก่อน Submit", sev: "warning" });
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Please login");
+
+      const newId = await getNextTempId(user.uid);
+      const ref = doc(db, "users", user.uid, "submissions", newId);
+
+      await setDoc(ref, {
+        ...form,
+        status: "submitted",
+        createdAt: serverTimestamp(),
+        submittedAt: serverTimestamp(),
+      });
+
+      setSnack({ open: true, msg: `ส่งสำเร็จเป็นเอกสาร ${newId}`, sev: "success" });
+      // ต้องการรีเซ็ตหลังส่งหรือไม่ สามารถปลดคอมเมนต์ด้านล่าง
+      // setForm(initialForm); setActiveStep(0); setErrors({});
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSnack({ open: true, msg: msg || "Submit ล้มเหลว", sev: "error" });
+    }
+  };
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200, mx: "auto" }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-        <Typography color="primary" fontWeight={700}>
-          New Publication Submission
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Step {activeStep + 1} of 4
-        </Typography>
-      </Stack>
-      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
-        {steps.map((label, idx) => (
-          <Step key={label} completed={idx < activeStep}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
-      <Grid container spacing={3}>
-        <Grid size={{xs:12,md:8}}>
-          {content}
-          <Stack direction="row" spacing={1} justifyContent="space-between">
-            <Button
-              variant="outlined"
-              onClick={goPrev}
-              disabled={activeStep === 0}
-            >
-              Previous
-            </Button>
-            <Stack direction="row" spacing={1}>
-              <Button variant="outlined">Save Draft</Button>
-              {isAttachments ? (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={onSubmit}
-                >
-                  Submit
-                </Button>
-              ) : (
-                <Button variant="contained" onClick={goNext}>
-                  Next
-                </Button>
+    <Box sx={{ maxWidth: 1152, mx: "auto", p: 2 }}>
+      <Typography variant="h5" fontWeight={700} gutterBottom>
+        New Submission
+      </Typography>
+
+      <Grid container spacing={2}>
+        {/* ซ้าย: ฟอร์ม + stepper */}
+        <Grid size={{ xs:12, md:8 }}>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+            <Stepper activeStep={activeStep} alternativeLabel>
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+
+            <Box sx={{ mt: 3 }}>
+              {activeStep === 0 && (
+                <BasicsStep
+                  value={form.basics}
+                  onChange={setBasics}
+                  errors={errors.basics}
+                />
               )}
+              {activeStep === 1 && (
+                <AuthorsStep
+                  value={form.authors}
+                  onChange={setAuthors}
+                  errors={errors.authors}
+                />
+              )}
+              {activeStep === 2 && (
+                <IdentifiersStep
+                  value={form.identifiers}
+                  onChange={setIdentifiers}
+                />
+              )}
+              {activeStep === 3 && (
+                <AttachmentsStep
+                  value={form.attachments}
+                  onChange={setAttachments}
+                />
+              )}
+            </Box>
+
+            <Stack
+              direction="row"
+              spacing={1.5}
+              sx={{ mt: 3, justifyContent: "space-between" }}
+            >
+              <Button variant="outlined" onClick={onBack} disabled={activeStep === 0}>
+                Back
+              </Button>
+              <Box>
+                <Button sx={{ mr: 1 }} variant="outlined" onClick={handleSaveDraft}>
+                  Save draft
+                </Button>
+                {activeStep < steps.length - 1 ? (
+                  <Button variant="contained" onClick={onNext}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button color="success" variant="contained" onClick={handleSubmit}>
+                    Submit
+                  </Button>
+                )}
+              </Box>
             </Stack>
-          </Stack>
+          </Paper>
         </Grid>
-        <Grid size={{xs:12,md:4}}>
-          <SidebarSummary progress={PROGRESS_BY_STEP[activeStep]} />
+
+        {/* ขวา: Progress + Summary */}
+        <Grid size={{ xs:12, md:4 }}>
+          <SidebarSummary form={form} />
         </Grid>
       </Grid>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3500}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={snack.sev}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
