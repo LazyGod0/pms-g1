@@ -2,12 +2,11 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Box, Button, Chip, Divider, Paper, Stack, Typography,
   List, ListItem, ListItemText, TextField, Skeleton
 } from '@mui/material';
-import { notFound } from 'next/navigation';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
@@ -17,7 +16,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-
 
 import { db } from '@/configs/firebase-config'; // ← adjust if needed
 import {
@@ -53,6 +51,7 @@ const fmt = (t?: Timestamp) =>
 
 export default function ReviewPublicationPage() {
   const { uid, sid } = useParams<{ uid: string; sid: string }>();
+  const router = useRouter(); // ✅ ใช้ router จาก next/navigation
 
   const [tab, setTab] = React.useState<TabKey>('basics');
   const [internalNotes, setInternalNotes] = React.useState('');
@@ -85,6 +84,7 @@ export default function ReviewPublicationPage() {
       setBusy(false);
     }
   }
+
   // --- Firestore: direct doc subscribe ---
   React.useEffect(() => {
     if (!uid || !sid) return;
@@ -135,13 +135,14 @@ export default function ReviewPublicationPage() {
     return () => unsub();
   }, [uid, sid]);
 
-
   async function setStatus(next: 'approved' | 'rejected') {
     try {
       await updateDoc(fsDoc(db, 'users', uid, 'submissions', sid), {
         status: next,
         reviewedAt: serverTimestamp(),
       });
+      // ✅ อัปเดตเสร็จ → เด้งกลับ Dashboard
+      router.push('/staff/dashboard');
     } catch (e) {
       console.error(e);
       alert('Failed to update status');
@@ -381,6 +382,8 @@ export default function ReviewPublicationPage() {
           </Stack>
         </Box>
       </Box>
+
+      {/* Confirm Dialog */}
       <Dialog
         open={confirmOpen}
         onClose={closeConfirm}
@@ -415,7 +418,6 @@ export default function ReviewPublicationPage() {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 }
