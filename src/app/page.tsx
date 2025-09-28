@@ -483,7 +483,6 @@ export default function PublicHomePage() {
                         <Grid container spacing={2}>
                             {paginatedResults.map((p) => (
                                 <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
                                     <PublicationCard
                                         publication={p}
                                         onView={(id) => handleNavigate(`/publication/${id}`)}

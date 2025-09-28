@@ -24,7 +24,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
       <Divider />
       <List>
         <ListItem disablePadding>
-          <ListItemButton LinkComponent={Link} href="/staff">
+          <ListItemButton LinkComponent={Link} href="/staff/dashboard">
             <ListItemIcon><HomeIcon /></ListItemIcon>
             <ListItemText primary="Home" />
           </ListItemButton>
