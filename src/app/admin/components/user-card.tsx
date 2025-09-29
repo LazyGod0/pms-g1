@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import { User, getRoleLabel, getRoleColor, getStatusColor } from "./user-types";
+import { User, getRoleLabel, getRoleColor } from "./user-types";
 
 interface UserCardProps {
     user: User;
@@ -67,12 +67,6 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
                             size="small"
                             label={getRoleLabel(user.role)}
                             color={getRoleColor(user.role)}
-                            variant="outlined"
-                        />
-                        <Chip
-                            size="small"
-                            label={user.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน"}
-                            color={getStatusColor(user.status)}
                             variant="outlined"
                         />
                     </Stack>

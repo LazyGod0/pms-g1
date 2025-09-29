@@ -58,8 +58,7 @@ export const PUT = async (
       role, 
       faculty, 
       department, 
-      phone, 
-      status 
+      phone
     } = await req.json();
 
     // ตรวจสอบว่าผู้ใช้มีอยู่หรือไม่
@@ -98,7 +97,6 @@ export const PUT = async (
       ...(faculty !== undefined && { faculty }),
       ...(department !== undefined && { department }),
       ...(phone !== undefined && { phone }),
-      ...(status && { status }),
       updatedAt: serverTimestamp()
     };
 

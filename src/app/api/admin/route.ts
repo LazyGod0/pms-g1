@@ -17,9 +17,8 @@ export const GET = async (req: Request) => {
   try {
     console.log("Fetching users from Firestore...");
     const usersCollection = collection(db, "users");
-    const usersQuery = query(usersCollection, orderBy("joinDate", "desc"));
-    const usersSnapshot = await getDocs(usersQuery);
-    
+    const usersSnapshot = await getDocs(usersCollection);
+
     const users = usersSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -47,7 +46,7 @@ export const GET = async (req: Request) => {
   }
 };
 
-// POST - สร้างผู้ใช้ใหม่
+    // POST - สร้างผู้ใช้ใหม่
 export const POST = async (req: Request) => {
   try {
     console.log("Creating new user...");
@@ -57,14 +56,10 @@ export const POST = async (req: Request) => {
       role, 
       faculty, 
       department, 
-      phone, 
-      status = "active",
-      password 
+      phone
     } = await req.json();
 
-    console.log("User data received:", { name, email, role, faculty, department, phone, status });
-
-    // Validate required fields
+    console.log("User data received:", { name, email, role, faculty, department, phone });    // Validate required fields
     if (!name || !email || !role) {
       console.log("Missing required fields");
       return NextResponse.json({
@@ -101,8 +96,6 @@ export const POST = async (req: Request) => {
       faculty: faculty || "",
       department: department || "",
       phone: phone || "",
-      status,
-      joinDate: new Date().toISOString().split('T')[0],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };

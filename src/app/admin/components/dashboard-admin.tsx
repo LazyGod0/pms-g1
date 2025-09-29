@@ -9,21 +9,19 @@ import {
     Stack,
     Typography,
     Button,
-    Paper,
+    Avatar,
+    Chip,
+    CircularProgress,
 } from "@mui/material";
 import PersonAddRoundedIcon from "@mui/icons-material/PersonAddRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import WorkRoundedIcon from "@mui/icons-material/WorkRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import { AdminPanelSettings } from "@mui/icons-material";
+import { useAdmin } from "../context/AdminContext";
 
 interface DashboardProps {
-    stats: {
-        total: number;
-        active: number;
-        lecturers: number;
-        students: number;
-    };
     onAddUser?: () => void;
 }
 
@@ -32,73 +30,110 @@ function StatCard({
     value,
     label,
     color = "primary",
+    trend,
 }: {
     icon: React.ReactNode;
     value: number | string;
     label: string;
-    color?: "primary" | "success" | "secondary" | "warning";
+    color?: "primary" | "success" | "secondary" | "warning" | "error";
+    trend?: string;
 }) {
     return (
-        <Paper
+        <Card
             elevation={0}
             sx={(theme) => ({
-                p: 2.5,
-                borderRadius: 3,
+                p: 3,
+                borderRadius: 4,
                 border: `1px solid ${theme.palette.divider}`,
-                transition: "all 0.2s ease-in-out",
+                background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.grey[50]})`,
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                position: "relative",
+                overflow: "hidden",
                 "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 3,
+                    transform: "translateY(-4px)",
+                    boxShadow: `0 8px 25px ${theme.palette.action.hover}`,
+                    borderColor: theme.palette.primary.light,
+                },
+                "&::before": {
+                    content: '""""',
+                    position: "absolute",
+                    top: 0,
+                    right: 0,
+                    width: "100px",
+                    height: "100px",
+                    background: `linear-gradient(135deg, ${theme.palette[color].main}15, transparent)`,
+                    borderRadius: "50%",
+                    transform: "translate(30px, -30px)",
                 },
             })}
         >
-            <Stack spacing={1.25} alignItems="center" textAlign="center">
-                <Box
-                    sx={(theme) => ({
-                        width: 48,
-                        height: 48,
-                        borderRadius: 2.5,
-                        display: "grid",
-                        placeItems: "center",
-                        bgcolor:
-                            color === "success"
-                                ? "rgba(46,125,50,0.08)"
-                                : color === "secondary"
-                                    ? "rgba(156,39,176,0.08)"
-                                    : color === "warning"
-                                        ? "rgba(255,152,0,0.08)"
-                                        : "rgba(25,118,210,0.08)",
-                        "& svg": {
-                            fontSize: 24,
-                            color:
-                                color === "success"
-                                    ? theme.palette.success.main
-                                    : color === "secondary"
-                                        ? theme.palette.secondary.main
-                                        : color === "warning"
-                                            ? theme.palette.warning.main
-                                            : theme.palette.primary.main,
-                        },
-                    })}
-                >
-                    {icon}
+            <Stack spacing={2} sx={{ position: "relative", zIndex: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Avatar
+                        sx={(theme) => ({
+                            width: 56,
+                            height: 56,
+                            bgcolor: `${theme.palette[color].main}20`,
+                            "& svg": {
+                                fontSize: 28,
+                                color: theme.palette[color].main,
+                            },
+                        })}
+                    >
+                        {icon}
+                    </Avatar>
+                    {trend && (
+                        <Chip
+                            label={trend}
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            sx={{ fontWeight: 600 }}
+                        />
+                    )}
+                </Stack>
+                
+                <Box>
+                    <Typography 
+                        variant="h3" 
+                        fontWeight={900} 
+                        lineHeight={1.1}
+                        sx={(theme) => ({
+                            color: theme.palette.text.primary,
+                            fontSize: { xs: "1.8rem", sm: "2.2rem" },
+                        })}
+                    >
+                        {value}
+                    </Typography>
+                    <Typography
+                        variant="body1"
+                        color="text.secondary"
+                        fontWeight={600}
+                        sx={{ mt: 0.5 }}
+                    >
+                        {label}
+                    </Typography>
                 </Box>
-                <Typography variant="h4" fontWeight={800} lineHeight={1.2}>
-                    {value}
-                </Typography>
-                <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    fontWeight={500}
-                >
-                    {label}
-                </Typography>
             </Stack>
-        </Paper>
+        </Card>
     );
 }
 
-export default function Dashboard({ stats, onAddUser }: DashboardProps) {
+export default function Dashboard({ onAddUser }: DashboardProps) {
+    const { stats, loading } = useAdmin();
+
+    const getPercentage = (value: number, total: number) => {
+        return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress size={40} />
+            </Box>
+        );
+    }
+
     return (
         <Card
             variant="outlined"
@@ -109,7 +144,7 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                 overflow: "visible",
                 position: "relative",
                 "&::before": {
-                    content: '""',
+                    content: '""""',
                     position: "absolute",
                     top: 0,
                     left: 0,
@@ -156,14 +191,7 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                                 value={stats.total}
                                 label="ผู้ใช้ทั้งหมด"
                                 color="primary"
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <StatCard
-                                icon={<PersonRoundedIcon />}
-                                value={stats.active}
-                                label="ใช้งานอยู่"
-                                color="success"
+                                trend={stats.total > 0 ? "+100%" : "เริ่มต้น"}
                             />
                         </Grid>
                         <Grid size={{ xs: 6, md: 3 }}>
@@ -172,14 +200,25 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                                 value={stats.lecturers}
                                 label="อาจารย์"
                                 color="warning"
+                                trend={getPercentage(stats.lecturers, stats.total)}
                             />
                         </Grid>
                         <Grid size={{ xs: 6, md: 3 }}>
                             <StatCard
                                 icon={<WorkRoundedIcon />}
-                                value={stats.students}
-                                label="นักศึกษา"
-                                color="secondary"
+                                value={stats.staff}
+                                label="เจ้าหน้าที่"
+                                color="success"
+                                trend={getPercentage(stats.staff, stats.total)}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6, md: 3 }}>
+                            <StatCard
+                                icon={<AdminPanelSettings />}
+                                value={stats.admins}
+                                label="ผู้ดูแลระบบ"
+                                color="error"
+                                trend={getPercentage(stats.admins, stats.total)}
                             />
                         </Grid>
                     </Grid>
