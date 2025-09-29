@@ -30,6 +30,11 @@ export default function ReportPage() {
   const intl = rows.filter(r=>r.level==='International').length;
   const approved = rows.filter(r=>r.status==='Approved').length;
 
+  const normalizedRows = rows.map(r => ({
+    ...r,
+    authors: (r.authors ?? []).map(a => (typeof a === 'string' ? a : (a?.name ?? '')) )
+  }));
+
   return (
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -38,7 +43,7 @@ export default function ReportPage() {
           <Typography color="text.secondary">Query the information and export as CSV/PDF file</Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<GetAppIcon />} onClick={()=>exportCSV(rows)}>Export CSV</Button>
+          <Button variant="outlined" startIcon={<GetAppIcon />} onClick={()=>exportCSV(normalizedRows as any)}>Export CSV</Button>
           <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={exportPDF}>Export PDF</Button>
         </Stack>
       </Stack>
@@ -59,9 +64,6 @@ export default function ReportPage() {
         }}
       >
         <StatCard label="Total Publications" value={total} />
-        <StatCard label="Journal Articles" value={journals} />
-        <StatCard label="Conference Papers" value={conferences} />
-        <StatCard label="Approved" value={approved} />
       </Box>
 
       {/* Charts section */}
@@ -73,13 +75,13 @@ export default function ReportPage() {
           mt: 2
         }}
       >
-        <PublicationsByYear data={rows} />
-        <PublicationsByType data={rows} />
-        <PublicationsByLevel data={rows} />
+        <PublicationsByYear data={normalizedRows as any} />
+        <PublicationsByType data={normalizedRows as any} />
+        <PublicationsByLevel data={normalizedRows as any} />
       </Box>
 
       <Box sx={{ mt: 2 }}>
-        <PublicationsTable rows={rows} />
+        <PublicationsTable rows={normalizedRows as any} />
       </Box>
     </Container>
   );
