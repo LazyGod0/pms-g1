@@ -8,11 +8,10 @@ import {
     Box,
     Card,
     CardContent,
-    CardHeader,
     Chip,
     Container,
     Divider,
-    Grid as Grid,
+    Grid,
     IconButton,
     InputAdornment,
     Pagination,
@@ -29,6 +28,9 @@ import {
     Typography,
     Button,
     Paper,
+    Fab,
+    Avatar,
+    Backdrop,
 } from "@mui/material";
 
 /* MUI Icons */
@@ -40,6 +42,10 @@ import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LoginIcon from "@mui/icons-material/Login";
+import SchoolIcon from "@mui/icons-material/School";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 
 /* -------------------------------------------------
    Mock Data + Types
@@ -127,10 +133,10 @@ function StatCard({
                         placeItems: "center",
                         bgcolor:
                             color === "success"
-                                ? t.palette.success[50] ?? "rgba(46,125,50,0.08)"
+                                ? "rgba(46,125,50,0.08)"
                                 : color === "secondary"
-                                    ? t.palette.secondary[50] ?? "rgba(156,39,176,0.08)"
-                                    : t.palette.primary[50] ?? "rgba(25,118,210,0.08)",
+                                    ? "rgba(156,39,176,0.08)"
+                                    : "rgba(25,118,210,0.08)",
                         "& svg": {
                             color:
                                 color === "success"
@@ -313,6 +319,9 @@ export default function PublicHomePage() {
     };
 
     const handleNavigate = (path: string) => router.push(path);
+    const handleGoBack = () => {
+        router.back();
+    };
 
     const paginatedResults = searchResults.slice(
         (currentPage - 1) * itemsPerPage,
@@ -328,97 +337,353 @@ export default function PublicHomePage() {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            {/* Hero */}
+        <Box
+            sx={(t) => ({
+                position: "relative",
+                minHeight: "100vh",
+                background: `linear-gradient(135deg, ${t.palette.primary.main}08 0%, ${t.palette.secondary.main}05 50%, transparent 100%)`,
+                "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23f0f0f0" fill-opacity="0.03"%3E%3Ccircle cx="30" cy="30" r="1.5"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+                    zIndex: 0,
+                },
+            })}
+        >
+        <Container maxWidth="lg" sx={{ py: 4, position: "relative", zIndex: 1 }}>
+            {/* Header Section */}
+            <Box sx={{ textAlign: "center", mb: 6 }}>
+                <Avatar
+                    sx={(t) => ({
+                        width: 100,
+                        height: 100,
+                        mx: "auto",
+                        mb: 3,
+                        background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
+                        boxShadow: 6,
+                    })}
+                >
+                    <SchoolIcon sx={{ fontSize: 50 }} />
+                </Avatar>
+                <Typography
+                    variant="h3"
+                    component="h1"
+                    fontWeight={800}
+                    gutterBottom
+                    sx={(t) => ({
+                        background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
+                        backgroundClip: "text",
+                        WebkitBackgroundClip: "text",
+                        color: "transparent",
+                        textShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                        mb: 2,
+                    })}
+                >
+                    ระบบจัดการผลงานตีพิมพ์
+                </Typography>
+                <Typography
+                    variant="h6"
+                    color="text.secondary"
+                    sx={{ maxWidth: 800, mx: "auto", fontWeight: 500, lineHeight: 1.6 }}
+                >
+                    ค้นพบและสำรวจผลงานวิชาการจากมหาวิทยาลัยของเรา ค้นหาผ่านวารสาร บทความงานประชุม และผลงานวิจัยต่างๆ
+                </Typography>
+            </Box>
+
+            {/* Hero Card */}
             <Card
                 variant="outlined"
-                sx={(t) => ({
-                    borderRadius: 4,
-                    background: `linear-gradient(90deg, ${t.palette.primary.light}11, transparent)`,
-                })}
+                sx={{
+                    borderRadius: 5,
+                    background: "rgba(255,255,255,0.9)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+                    mb: 6,
+                }}
             >
-                <CardContent>
-                    <Stack spacing={2} alignItems="center" textAlign="center">
-                        <Typography variant="h4" fontWeight={800}>
-                            Publication Management System
-                        </Typography>
-                        <Typography color="text.secondary" sx={{ maxWidth: 720 }}>
+                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+                    <Stack spacing={4} alignItems="center" textAlign="center">
+                        {/* Main Title with Icon */}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                            <MenuBookIcon sx={(t) => ({ fontSize: 40, color: t.palette.primary.main })} />
+                            <Typography
+                                variant="h4"
+                                fontWeight={700}
+                                sx={{ color: "text.primary" }}
+                            >
+                                Publication Management System
+                            </Typography>
+                        </Box>
+
+                        <Typography
+                            color="text.secondary"
+                            sx={{
+                                maxWidth: 720,
+                                fontSize: "1.1rem",
+                                lineHeight: 1.7,
+                                fontWeight: 400
+                            }}
+                        >
                             Discover and explore academic publications from our university. Search through
                             journals, conference papers, and research outputs.
                         </Typography>
 
-                        <Grid container spacing={2} sx={{ mt: 1, maxWidth: 900 }}>
+                        {/* Enhanced Stats Grid */}
+                        <Grid container spacing={3} sx={{ mt: 2, maxWidth: 1000 }}>
                             <Grid item xs={6} md={3}>
-                                <StatCard
-                                    icon={<AutoStoriesOutlinedIcon />}
-                                    value={stats.total}
-                                    label="Publications"
-                                    color="primary"
-                                />
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 3,
+                                        borderRadius: 4,
+                                        background: `linear-gradient(135deg, ${t.palette.primary.main}15, ${t.palette.primary.light}08)`,
+                                        border: `1px solid ${t.palette.primary.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-4px)",
+                                            boxShadow: `0 8px 25px ${t.palette.primary.main}30`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 50,
+                                                height: 50,
+                                                bgcolor: t.palette.primary.main,
+                                                boxShadow: 2,
+                                            })}
+                                        >
+                                            <AutoStoriesOutlinedIcon sx={{ fontSize: 28 }} />
+                                        </Avatar>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: "primary.main" }}>
+                                            {stats.total}
+                                        </Typography>
+                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                            ผลงานทั้งหมด
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                                <StatCard
-                                    icon={<EmojiEventsOutlinedIcon />}
-                                    value={stats.international}
-                                    label="International"
-                                    color="success"
-                                />
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 3,
+                                        borderRadius: 4,
+                                        background: `linear-gradient(135deg, ${t.palette.success.main}15, ${t.palette.success.light}08)`,
+                                        border: `1px solid ${t.palette.success.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-4px)",
+                                            boxShadow: `0 8px 25px ${t.palette.success.main}30`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 50,
+                                                height: 50,
+                                                bgcolor: t.palette.success.main,
+                                                boxShadow: 2,
+                                            })}
+                                        >
+                                            <EmojiEventsOutlinedIcon sx={{ fontSize: 28 }} />
+                                        </Avatar>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: "success.main" }}>
+                                            {stats.international}
+                                        </Typography>
+                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                            ระดับนานาชาติ
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                                <StatCard
-                                    icon={<TrendingUpRoundedIcon />}
-                                    value={stats.journals}
-                                    label="Journals"
-                                    color="primary"
-                                />
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 3,
+                                        borderRadius: 4,
+                                        background: `linear-gradient(135deg, ${t.palette.info.main}15, ${t.palette.info.light}08)`,
+                                        border: `1px solid ${t.palette.info.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-4px)",
+                                            boxShadow: `0 8px 25px ${t.palette.info.main}30`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 50,
+                                                height: 50,
+                                                bgcolor: t.palette.info.main,
+                                                boxShadow: 2,
+                                            })}
+                                        >
+                                            <TrendingUpRoundedIcon sx={{ fontSize: 28 }} />
+                                        </Avatar>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: "info.main" }}>
+                                            {stats.journals}
+                                        </Typography>
+                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                            วารสาร
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
                             </Grid>
                             <Grid item xs={6} md={3}>
-                                <StatCard
-                                    icon={<GroupOutlinedIcon />}
-                                    value={stats.conferences}
-                                    label="Conferences"
-                                    color="secondary"
-                                />
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 3,
+                                        borderRadius: 4,
+                                        background: `linear-gradient(135deg, ${t.palette.secondary.main}15, ${t.palette.secondary.light}08)`,
+                                        border: `1px solid ${t.palette.secondary.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-4px)",
+                                            boxShadow: `0 8px 25px ${t.palette.secondary.main}30`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 50,
+                                                height: 50,
+                                                bgcolor: t.palette.secondary.main,
+                                                boxShadow: 2,
+                                            })}
+                                        >
+                                            <GroupOutlinedIcon sx={{ fontSize: 28 }} />
+                                        </Avatar>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: "secondary.main" }}>
+                                            {stats.conferences}
+                                        </Typography>
+                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                            งานประชุม
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
                             </Grid>
                         </Grid>
-                        <Button variant="contained" >
-                            Login to Publications Management System
+
+                        {/* Enhanced Login Button */}
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={<LoginIcon />}
+                            onClick={() => handleNavigate('/login')}
+                            sx={{
+                                mt: 4,
+                                py: 2,
+                                px: 4,
+                                borderRadius: 4,
+                                fontSize: "1.1rem",
+                                fontWeight: 700,
+                                textTransform: "none",
+                                background: (t) => `linear-gradient(45deg, ${t.palette.primary.main} 30%, ${t.palette.primary.dark} 90%)`,
+                                boxShadow: "0 6px 20px rgba(25, 118, 210, 0.4)",
+                                "&:hover": {
+                                    transform: "translateY(-3px)",
+                                    boxShadow: "0 8px 30px rgba(25, 118, 210, 0.6)",
+                                    background: (t) => `linear-gradient(45deg, ${t.palette.primary.dark} 30%, ${t.palette.primary.main} 90%)`,
+                                },
+                                transition: "all 0.3s ease-in-out",
+                            }}
+                        >
+                            เข้าสู่ระบบจัดการผลงานตีพิมพ์
                         </Button>
                     </Stack>
                 </CardContent>
             </Card>
 
-            {/* Search & Controls */}
+            {/* Enhanced Search & Controls */}
             <Card
                 variant="outlined"
-                sx={{ mt: 4, borderRadius: 3, backdropFilter: "blur(2px)" }}
+                sx={{
+                    mt: 4,
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.9)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                }}
             >
-                <CardContent>
+                <CardContent sx={{ p: 3 }}>
                     <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems="center">
                         <TextField
                             fullWidth
-                            placeholder="Search publications..."
+                            placeholder="ค้นหาผลงานตีพิมพ์..."
                             value={filters.keyword ?? ""}
                             onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") handleSearch();
                             }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    borderRadius: 3,
+                                    backgroundColor: "rgba(0,0,0,0.02)",
+                                    "&:hover": {
+                                        backgroundColor: "rgba(0,0,0,0.04)",
+                                    },
+                                    "&.Mui-focused": {
+                                        backgroundColor: "rgba(255,255,255,1)",
+                                        boxShadow: "0 0 0 3px rgba(25, 118, 210, 0.1)",
+                                    },
+                                },
+                            }}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <SearchRoundedIcon fontSize="small" />
+                                        <SearchRoundedIcon
+                                            fontSize="small"
+                                            sx={(t) => ({ color: t.palette.primary.main })}
+                                        />
                                     </InputAdornment>
                                 ),
                             }}
                         />
                         <Stack direction="row" gap={1} alignItems="center" flexShrink={0}>
-                            <Button variant="contained" onClick={handleSearch} sx={{ borderRadius: 2 }}>
-                                Search
+                            <Button
+                                variant="contained"
+                                onClick={handleSearch}
+                                sx={{
+                                    borderRadius: 3,
+                                    px: 3,
+                                    fontWeight: 600,
+                                    "&:hover": {
+                                        transform: "translateY(-1px)",
+                                        boxShadow: 4,
+                                    },
+                                    transition: "all 0.2s ease-in-out",
+                                }}
+                            >
+                                ค้นหา
                             </Button>
-                            <Tooltip title={showAdvanced ? "Hide advanced filters" : "Show advanced filters"}>
+                            <Tooltip title={showAdvanced ? "ซ่อนตัวกรองขั้นสูง" : "แสดงตัวกรองขั้นสูง"}>
                                 <IconButton
                                     onClick={() => setShowAdvanced((s) => !s)}
-                                    sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                                    sx={{
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        borderRadius: 2,
+                                        "&:hover": {
+                                            backgroundColor: "primary.main",
+                                            color: "white",
+                                            borderColor: "primary.main",
+                                        },
+                                        transition: "all 0.2s ease-in-out",
+                                    }}
                                 >
                                     <TuneRoundedIcon />
                                 </IconButton>
@@ -431,13 +696,20 @@ export default function PublicHomePage() {
                                 sx={{
                                     ml: { md: 1 },
                                     borderRadius: 2,
-                                    "& .MuiToggleButton-root": { px: 1.5 },
+                                    "& .MuiToggleButton-root": {
+                                        px: 2,
+                                        borderRadius: 2,
+                                        "&.Mui-selected": {
+                                            backgroundColor: "primary.main",
+                                            color: "white",
+                                        },
+                                    },
                                 }}
                             >
-                                <ToggleButton value="cards" aria-label="card view">
+                                <ToggleButton value="cards" aria-label="มุมมองการ์ด">
                                     <GridViewRoundedIcon fontSize="small" />
                                 </ToggleButton>
-                                <ToggleButton value="table" aria-label="table view">
+                                <ToggleButton value="table" aria-label="มุมมองตาราง">
                                     <TableRowsRoundedIcon fontSize="small" />
                                 </ToggleButton>
                             </ToggleButtonGroup>
@@ -446,10 +718,10 @@ export default function PublicHomePage() {
 
                     {/* Advanced placeholder */}
                     {showAdvanced && (
-                        <Box sx={{ mt: 2 }}>
-                            <Divider sx={{ mb: 2 }} />
-                            <Typography variant="body2" color="text.secondary">
-                                (Advanced filters placeholder — you can add year, type, level, faculty, etc.)
+                        <Box sx={{ mt: 3 }}>
+                            <Divider sx={{ mb: 3 }} />
+                            <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                                🚧 ตัวกรองขั้นสูง — สามารถเพิ่มการกรองตามปี ประเภท ระดับ คณะ ฯลฯ
                             </Typography>
                         </Box>
                     )}
@@ -532,5 +804,6 @@ export default function PublicHomePage() {
                 </Card>
             )}
         </Container>
+        </Box>
     );
 }
