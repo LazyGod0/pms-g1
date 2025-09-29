@@ -25,10 +25,10 @@ import {
     SearchFiltersType, 
     searchUsers 
 } from "./user-types";
+import { useAdmin } from "../context/AdminContext";
 
 const ManageUsersComponent: React.FC = () => {
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { users, loading, addActivity } = useAdmin();
     const [filters, setFilters] = useState<SearchFiltersType>({
         keyword: "",
         role: "",
@@ -48,50 +48,9 @@ const ManageUsersComponent: React.FC = () => {
 
     const itemsPerPage = 12;
 
-    // Load users from Firebase on component mount
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+    // Users are loaded via AdminContext, no need for manual fetching
 
-    // Firebase API functions
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
-            console.log('Fetching users from API...');
-            
-            const response = await fetch('/api/admin', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            console.log('Fetch response status:', response.status);
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch users: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Fetched users:', data);
-            setUsers(data.users || []);
-            
-            if (data.users.length === 0) {
-                console.log('No users found in database');
-            }
-        } catch (error) {
-            console.error('Error fetching users:', error);
-            setSnackbar({
-                open: true,
-                message: "เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้งาน กรุณาตรวจสอบการเชื่อมต่อ Firebase",
-                severity: "error",
-            });
-            // ตั้งค่า users เป็น array ว่าง เมื่อเกิด error
-            setUsers([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Firebase API functions will use the real-time data from context
 
     const createUser = async (userData: UserFormData) => {
         try {
@@ -105,13 +64,10 @@ const ManageUsersComponent: React.FC = () => {
                 body: JSON.stringify(userData),
             });
 
-            console.log('API Response status:', response.status);
-
             if (!response.ok) {
                 const errorData = await response.json();
                 console.error('API Error:', errorData);
                 
-                // แสดง error message ที่เฉพาะเจาะจงขึ้น
                 if (response.status === 409) {
                     throw new Error('อีเมลนี้มีผู้ใช้งานแล้ว กรุณาใช้อีเมลอื่น');
                 } else if (response.status === 400) {
@@ -123,7 +79,17 @@ const ManageUsersComponent: React.FC = () => {
 
             const data = await response.json();
             console.log('User created successfully:', data.user);
-            setUsers(prevUsers => [...prevUsers, data.user]);
+            
+            // Log activity
+            await addActivity({
+                userId: "admin",
+                userName: "ผู้ดูแลระบบ",
+                action: "create",
+                actionText: "เพิ่มผู้ใช้ใหม่",
+                targetName: userData.name,
+                targetId: data.user.id,
+            });
+            
             return data.user;
         } catch (error) {
             console.error('Error creating user:', error);
@@ -147,11 +113,17 @@ const ManageUsersComponent: React.FC = () => {
             }
 
             const data = await response.json();
-            setUsers(prevUsers => 
-                prevUsers.map(user => 
-                    user.id === id ? data.user : user
-                )
-            );
+            
+            // Log activity
+            await addActivity({
+                userId: "admin",
+                userName: "ผู้ดูแลระบบ",
+                action: "edit",
+                actionText: "แก้ไขข้อมูล",
+                targetName: userData.name || "ผู้ใช้",
+                targetId: id,
+            });
+            
             return data.user;
         } catch (error) {
             console.error('Error updating user:', error);
@@ -159,7 +131,7 @@ const ManageUsersComponent: React.FC = () => {
         }
     };
 
-    const deleteUser = async (id: string) => {
+    const deleteUser = async (id: string, userName: string) => {
         try {
             const response = await fetch(`/api/admin/${id}`, {
                 method: 'DELETE',
@@ -173,7 +145,16 @@ const ManageUsersComponent: React.FC = () => {
                 throw new Error(errorData.message || 'Failed to delete user');
             }
 
-            setUsers(prevUsers => prevUsers.filter(user => user.id !== id));
+            // Log activity
+            await addActivity({
+                userId: "admin",
+                userName: "ผู้ดูแลระบบ",
+                action: "delete",
+                actionText: "ลบผู้ใช้",
+                targetName: userName,
+                targetId: id,
+            });
+            
         } catch (error) {
             console.error('Error deleting user:', error);
             throw error;
@@ -254,7 +235,7 @@ const ManageUsersComponent: React.FC = () => {
     const handleDeleteConfirm = async () => {
         if (deletingUser) {
             try {
-                await deleteUser(deletingUser.id);
+                await deleteUser(deletingUser.id, deletingUser.name);
                 setDeleteDialogOpen(false);
                 setDeletingUser(null);
                 setSnackbar({
@@ -307,7 +288,7 @@ const ManageUsersComponent: React.FC = () => {
                     viewMode={viewMode}
                     onViewModeChange={handleViewModeChange}
                     onSearch={() => setCurrentPage(1)}
-                    onRefresh={fetchUsers}
+                    onRefresh={() => console.log("Refresh triggered")}
                     onAddUser={handleAddUser}
                 />
 

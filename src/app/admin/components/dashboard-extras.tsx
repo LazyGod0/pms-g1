@@ -15,6 +15,8 @@ import {
     Avatar,
     Chip,
     Divider,
+    CircularProgress,
+    Box,
 } from "@mui/material";
 import {
     PersonAdd,
@@ -23,6 +25,7 @@ import {
     Analytics,
     Schedule,
 } from "@mui/icons-material";
+import { useAdmin } from "../context/AdminContext";
 
 interface QuickActionsProps {
     onAddUser?: () => void;
@@ -55,34 +58,23 @@ const quickActions = [
     },
 ];
 
-const recentActivities = [
-    {
-        id: 1,
-        user: "สมชาย ใจดี",
-        action: "เพิ่มผู้ใช้ใหม่",
-        target: "นางสาวมานี มีสุข",
-        time: "5 นาทีที่แล้ว",
-        type: "create",
-    },
-    {
-        id: 2,
-        user: "สมหญิง ขยัน",
-        action: "แก้ไขข้อมูล",
-        target: "อ.ดร.วิทย์ ปัญญา",
-        time: "15 นาทีที่แล้ว",
-        type: "edit",
-    },
-    {
-        id: 3,
-        user: "ผู้ดูแลระบบ",
-        action: "ลบผู้ใช้",
-        target: "นายทดสอบ ระบบ",
-        time: "1 ชั่วโมงที่แล้ว",
-        type: "delete",
-    },
-];
+// Utility function to format time
+const formatTimeAgo = (timestamp: any) => {
+    if (!timestamp) return "ไม่ทราบเวลา";
+    
+    const now = new Date();
+    const activityTime = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "เมื่อสักครู่";
+    if (diffInMinutes < 60) return `${diffInMinutes} นาทีที่แล้ว`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ชั่วโมงที่แล้ว`;
+    return `${Math.floor(diffInMinutes / 1440)} วันที่แล้ว`;
+};
 
 export default function DashboardExtras({ onAddUser }: QuickActionsProps) {
+    const { activities, loading } = useAdmin();
+
     const handleAction = (action: string) => {
         switch (action) {
             case "addUser":
@@ -111,46 +103,39 @@ export default function DashboardExtras({ onAddUser }: QuickActionsProps) {
         }
     };
 
+
+    // Mock activities data
+// const mockActivities = [
+//     {
+//         id: "1",
+//         userName: "ดลภาค คงได้บุญ",
+//         action: "create",
+//         actionText: "สร้างผู้ใช้",
+//         targetName: "นางสาวมาลี ลูกแม่แหม่ม",
+//         createdAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+//     },
+//     {
+//         id: "2", 
+//         userName: "ชัชชาติ สิทธิพันธุ์",
+//         action: "edit",
+//         actionText: "แก้ไขข้อมูล",
+//         targetName: "นายวิชัย ไชยชนะ",
+//         createdAt: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+//     },
+//     {
+//         id: "3",
+//         userName: "Topfy Midnight",
+//         action: "create",
+//         actionText: "สร้างผู้ใช้",
+//         targetName: "พี่เจพี่",
+//         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+//     },
+// ];
+
+
     return (
         <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid size={{ xs: 12, md: 6 }}>
-                <Card elevation={0} sx={{ borderRadius: 4, border: "1px solid", borderColor: "divider" }}>
-                    <CardContent sx={{ p: 3 }}>
-                        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                            🚀 การดำเนินการด่วน
-                        </Typography>
-                        <Grid container spacing={2}>
-                            {quickActions.map((action, index) => (
-                                <Grid size={{ xs: 6 }} key={index}>
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        color={action.color}
-                                        startIcon={action.icon}
-                                        onClick={() => handleAction(action.action)}
-                                        sx={{
-                                            p: 2,
-                                            borderRadius: 3,
-                                            flexDirection: "column",
-                                            height: "80px",
-                                            fontSize: "0.875rem",
-                                            fontWeight: 600,
-                                            "&:hover": {
-                                                transform: "translateY(-2px)",
-                                                boxShadow: 2,
-                                            },
-                                        }}
-                                    >
-                                        {action.label}
-                                    </Button>
-                                </Grid>
-                            ))}
-                        </Grid>
-                    </CardContent>
-                </Card>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid size={{ xs:  12, md: 24 }}>
                 <Card elevation={0} sx={{ borderRadius: 4, border: "1px solid", borderColor: "divider" }}>
                     <CardContent sx={{ p: 3 }}>
                         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -166,50 +151,65 @@ export default function DashboardExtras({ onAddUser }: QuickActionsProps) {
                             />
                         </Stack>
                         
-                        <List sx={{ p: 0 }}>
-                            {recentActivities.map((activity, index) => (
-                                <React.Fragment key={activity.id}>
-                                    <ListItem sx={{ px: 0, py: 1 }}>
-                                        <ListItemAvatar>
-                                            <Avatar 
-                                                sx={{ 
-                                                    width: 32, 
-                                                    height: 32, 
-                                                    fontSize: "1rem",
-                                                    bgcolor: "transparent",
-                                                }}
-                                            >
-                                                {getActivityIcon(activity.type)}
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Stack direction="row" alignItems="center" spacing={1}>
-                                                    <Typography variant="body2" fontWeight={600}>
-                                                        {activity.user}
+                        {loading ? (
+                            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                                <CircularProgress size={24} />
+                            </Box>
+                        ) : activities.length === 0 ? (
+                            <Box sx={{ textAlign: "center", py: 4 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    🎉 ไม่มีกิจกรรมล่าสุด
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    เริ่มใช้งานระบบเพื่อดูกิจกรรมที่นี่
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <List sx={{ p: 0 }}>
+                                {activities.slice(0, 5).map((activity, index) => (
+                                    <React.Fragment key={activity.id}>
+                                        <ListItem sx={{ px: 0, py: 1 }}>
+                                            <ListItemAvatar>
+                                                <Avatar 
+                                                    sx={{ 
+                                                        width: 32, 
+                                                        height: 32, 
+                                                        fontSize: "1rem",
+                                                        bgcolor: "transparent",
+                                                    }}
+                                                >
+                                                    {getActivityIcon(activity.action)}
+                                                </Avatar>
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                                primary={
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <Typography variant="body2" fontWeight={600}>
+                                                            {activity.userName}
+                                                        </Typography>
+                                                        <Chip 
+                                                            label={activity.actionText} 
+                                                            size="small" 
+                                                            color={getActivityColor(activity.action) as any}
+                                                            variant="outlined"
+                                                            sx={{ fontSize: "0.75rem", height: "20px" }}
+                                                        />
+                                                    </Stack>
+                                                }
+                                                secondary={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {activity.targetName} • {formatTimeAgo(activity.createdAt)}
                                                     </Typography>
-                                                    <Chip 
-                                                        label={activity.action} 
-                                                        size="small" 
-                                                        color={getActivityColor(activity.type) as any}
-                                                        variant="outlined"
-                                                        sx={{ fontSize: "0.75rem", height: "20px" }}
-                                                    />
-                                                </Stack>
-                                            }
-                                            secondary={
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {activity.target} • {activity.time}
-                                                </Typography>
-                                            }
-                                        />
-                                    </ListItem>
-                                    {index < recentActivities.length - 1 && (
-                                        <Divider sx={{ my: 0.5 }} />
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </List>
+                                                }
+                                            />
+                                        </ListItem>
+                                        {index < activities.slice(0, 5).length - 1 && (
+                                            <Divider sx={{ my: 0.5 }} />
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
                         
                         <Button 
                             fullWidth 

@@ -11,20 +11,17 @@ import {
     Button,
     Avatar,
     Chip,
+    CircularProgress,
 } from "@mui/material";
 import PersonAddRoundedIcon from "@mui/icons-material/PersonAddRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import WorkRoundedIcon from "@mui/icons-material/WorkRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import { AdminPanelSettings } from "@mui/icons-material";
+import { useAdmin } from "../context/AdminContext";
 
 interface DashboardProps {
-    stats: {
-        total: number;
-        lecturers: number;
-        admins: number;
-        staff: number;
-    };
     onAddUser?: () => void;
 }
 
@@ -122,7 +119,21 @@ function StatCard({
     );
 }
 
-export default function Dashboard({ stats, onAddUser }: DashboardProps) {
+export default function Dashboard({ onAddUser }: DashboardProps) {
+    const { stats, loading } = useAdmin();
+
+    const getPercentage = (value: number, total: number) => {
+        return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress size={40} />
+            </Box>
+        );
+    }
+
     return (
         <Card
             variant="outlined"
@@ -180,6 +191,7 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                                 value={stats.total}
                                 label="ผู้ใช้ทั้งหมด"
                                 color="primary"
+                                trend={stats.total > 0 ? "+100%" : "เริ่มต้น"}
                             />
                         </Grid>
                         <Grid size={{ xs: 6, md: 3 }}>
@@ -188,6 +200,7 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                                 value={stats.lecturers}
                                 label="อาจารย์"
                                 color="warning"
+                                trend={getPercentage(stats.lecturers, stats.total)}
                             />
                         </Grid>
                         <Grid size={{ xs: 6, md: 3 }}>
@@ -196,14 +209,16 @@ export default function Dashboard({ stats, onAddUser }: DashboardProps) {
                                 value={stats.staff}
                                 label="เจ้าหน้าที่"
                                 color="success"
+                                trend={getPercentage(stats.staff, stats.total)}
                             />
                         </Grid>
                         <Grid size={{ xs: 6, md: 3 }}>
                             <StatCard
-                                icon={<PersonRoundedIcon />}
+                                icon={<AdminPanelSettings />}
                                 value={stats.admins}
                                 label="ผู้ดูแลระบบ"
-                                color="secondary"
+                                color="error"
+                                trend={getPercentage(stats.admins, stats.total)}
                             />
                         </Grid>
                     </Grid>
