@@ -84,22 +84,23 @@ function AdminDashboardContent() {
 
     const handleSaveUser = async (userData: UserFormData) => {
         try {
-            // แทนที่จะใช้ createUserWithEmailAndPassword ที่จะ logout admin
-            // เราจะเพิ่มข้อมูลลง Firestore โดยตรง และสร้าง uid เอง
-            const uid = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-            // เพิ่มข้อมูลลงใน Firestore โดยตรง พร้อมกับค่าคณะและภาควิชาที่กำหนดไว้
-            const docRef = await addDoc(collection(db, "users"), {
-                uid: uid,
-                name: userData.name,
-                email: userData.email,
-                role: userData.role,
-                faculty: userData.faculty || "วิทยาศาสตร์",
-                department: userData.department || "วิทยาการคอมพิวเตอร์",
-                phone: userData.phone,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
+            // ใช้ API endpoint แทนการสร้างผู้ใช้โดยตรง เพื่อไม่ให้ admin logout
+            const response = await fetch('/api/admin/create-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userData: userData,
+                    adminUid: user?.uid // ส่ง admin UID เพื่อยืนยันสิทธิ์
+                })
             });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create user');
+            }
 
             // บันทึกประวัติการใช้งาน - เพิ่มผู้ใช้ใหม่
             if (user) {
@@ -113,7 +114,7 @@ function AdminDashboardContent() {
                     category: "user_management",
                     method: "web",
                     targetType: "user",
-                    targetId: docRef.id,
+                    targetId: result.user.uid,
                     targetName: userData.name,
                     severity: "medium",
                     details: `เพิ่มผู้ใช้ใหม่ ${userData.name} (${userData.email}) ในบทบาท ${userData.role} คณะ${userData.faculty || "วิทยาศาสตร์"} ภาค${userData.department || "วิทยาการคอมพิวเตอร์"}`,
@@ -125,25 +126,26 @@ function AdminDashboardContent() {
                             department: userData.department || "วิทยาการคอมพิวเตอร์",
                             phone: userData.phone
                         },
-                        createdVia: "admin_dashboard_simple",
-                        documentId: docRef.id,
-                        generatedUid: uid
+                        createdVia: "admin_dashboard_api",
+                        createdUserUid: result.user.uid,
+                        method: "firebase_admin_sdk"
                     }
                 });
             }
 
             setSnackbar({
                 open: true,
-                message: "เพิ่มผู้ใช้สำเร็จ! (ผู้ใช้จะต้องสมัครสมาชิกด้วยตนเองในหน้า login)",
+                message: "เพิ่มผู้ใช้สำเร็จ! ผู้ใช้สามารถ login ด้วย email และ password ที่กำหนดได้ทันที",
                 severity: "success",
             });
 
             setFormDialogOpen(false);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error adding user:", error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
             setSnackbar({
                 open: true,
-                message: `เกิดข้อผิดพลาด: ${error.message}`,
+                message: `เกิดข้อผิดพลาด: ${errorMessage}`,
                 severity: "error",
             });
         }
@@ -162,14 +164,14 @@ function AdminDashboardContent() {
                     userId: user.uid,
                     userEmail: user.email || "test@admin.com",
                     userName: user.displayName || user.email || "Admin User",
-                    userRole: "admin",
+                    userRole: "admin" as const,
                     action: "login",
                     actionText: "เข้าสู่ระบบ (ทดสอบ)",
                     category: "auth",
                     method: "web",
                     targetType: "system",
                     targetName: "Admin Dashboard",
-                    severity: "low",
+                    severity: "low" as const,
                     details: `เข้าสู่ระบบทดสอบ - เวลา ${new Date().toLocaleString('th-TH')}`,
                     metadata: {
                         testData: true,
@@ -181,14 +183,14 @@ function AdminDashboardContent() {
                     userId: user.uid,
                     userEmail: user.email || "test@admin.com",
                     userName: user.displayName || user.email || "Admin User",
-                    userRole: "admin",
+                    userRole: "admin" as const,
                     action: "create",
                     actionText: "เพิ่มผู้ใช้ใหม่ (ทดสอบ)",
                     category: "user_management",
                     method: "web",
                     targetType: "user",
                     targetName: "Test User",
-                    severity: "medium",
+                    severity: "medium" as const,
                     details: "สร้างผู้ใช้ทดสอบผ่านฟังก์ชั่นทดสอบ",
                     metadata: {
                         testData: true,
@@ -203,15 +205,20 @@ function AdminDashboardContent() {
                     userId: user.uid,
                     userEmail: user.email || "test@admin.com",
                     userName: user.displayName || user.email || "Admin User",
-                    userRole: "admin",
+                    userRole: "admin" as const,
                     action: "view",
                     actionText: "ดูประวัติการใช้งาน (ทดสอบ)",
                     category: "user_management",
                     method: "web",
                     targetType: "user",
                     targetName: "Some User",
-                    severity: "low",
-                    details: "ดูประวัติการใช้งานของผู้ใช้ผ่านฟังก์ชั่นทดสอบ"
+                    severity: "low" as const,
+                    details: "ดูประวัติการใช้งานของผู้ใช้ผ่านฟังก์ชั่นทดสอบ",
+                    metadata: {
+                        testData: true,
+                        viewType: "user_activity",
+                        timestamp: Date.now()
+                    }
                 }
             ];
 
@@ -228,11 +235,12 @@ function AdminDashboardContent() {
             });
 
             console.log("Test activity logs created successfully");
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
             console.error("Error creating test activity logs:", error);
             setSnackbar({
                 open: true,
-                message: `เกิดข้อผิดพลาดในการสร้าง Activity Logs ทดสอบ: ${error.message}`,
+                message: `เกิดข้อผิดพลาดในการสร้าง Activity Logs ทดสอบ: ${errorMessage}`,
                 severity: "error",
             });
         }

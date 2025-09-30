@@ -37,8 +37,9 @@ import PersonIcon from "@mui/icons-material/Person";
 function mapFirebaseErrorToThai(error: unknown) {
     console.log("Firebase Error:", error); // เพิ่ม logging เพื่อ debug
 
-    const code = (error as any)?.code?.toLowerCase() || "";
-    const message = (error as any)?.message?.toLowerCase() || "";
+    const errorObj = error as { code?: string; message?: string };
+    const code = errorObj?.code?.toLowerCase() || "";
+    const message = errorObj?.message?.toLowerCase() || "";
 
     // ตรวจสอบ error code ที่เป็นไปได้
     if (code.includes("auth/invalid-email") || code.includes("invalid-email")) {
@@ -81,6 +82,8 @@ export default function SignInPage() {
     // ใช้ Context hooks - ต้องเรียกที่ top level
     const { user: authUser, loading: authLoading, isAuthenticated } = useAuth();
 
+    // Add mounted state to prevent hydration mismatch
+    const [isMounted, setIsMounted] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPwd, setShowPwd] = useState(false);
@@ -89,16 +92,17 @@ export default function SignInPage() {
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // โหลดข้อมูลที่จำไว้เมื่อ component mount
+    // Set mounted state and load saved data only on client
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const savedRemember = localStorage.getItem('rememberMe') === 'true';
-            const savedEmail = localStorage.getItem('rememberedEmail');
+        setIsMounted(true);
 
-            if (savedRemember && savedEmail) {
-                setRemember(true);
-                setEmail(savedEmail);
-            }
+        // โหลดข้อมูลที่จำไว้เมื่อ component mount (only on client)
+        const savedRemember = localStorage.getItem('rememberMe') === 'true';
+        const savedEmail = localStorage.getItem('rememberedEmail');
+
+        if (savedRemember && savedEmail) {
+            setRemember(true);
+            setEmail(savedEmail);
         }
     }, []);
 
@@ -147,6 +151,20 @@ export default function SignInPage() {
             // รอสักครู่ให้ AuthContext ประมวลผล role ก่อน
             setTimeout(async () => {
                 try {
+                    // Safe browser API access to prevent hydration mismatch
+                    const getBrowserInfo = () => {
+                        if (typeof window === 'undefined') return {};
+
+                        return {
+                            userAgent: navigator?.userAgent?.split(' ')[0] || 'Unknown',
+                            language: navigator?.language || 'Unknown',
+                            screenResolution: screen ? `${screen.width}x${screen.height}` : 'Unknown',
+                            timezone: Intl?.DateTimeFormat()?.resolvedOptions()?.timeZone || 'Unknown'
+                        };
+                    };
+
+                    const browserInfo = getBrowserInfo();
+
                     await logUserActivity({
                         userId: result.user.uid,
                         userEmail: result.user.email || trimmedEmail,
@@ -159,14 +177,14 @@ export default function SignInPage() {
                         targetType: "system",
                         targetName: "ระบบจัดการผลงานตีพิมพ์",
                         severity: "low",
-                        details: `เข้าสู่ระบบผ่านเว็บไซต์ - Browser: ${navigator.userAgent.split(' ')[0]}`,
+                        details: `เข้าสู่ระบบผ่านเว็บไซต์ - Browser: ${browserInfo.userAgent}`,
                         metadata: {
                             loginMethod: "email_password",
                             rememberMe: remember,
                             redirectTo: redirect !== "/" ? redirect : null,
-                            browserLanguage: navigator.language,
-                            screenResolution: `${screen.width}x${screen.height}`,
-                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            browserLanguage: browserInfo.language,
+                            screenResolution: browserInfo.screenResolution,
+                            timezone: browserInfo.timezone,
                             firebaseUid: result.user.uid,
                             actualEmail: result.user.email
                         }
@@ -183,7 +201,7 @@ export default function SignInPage() {
             // รอให้ AuthContext อัพเดท user พร้อม role แล้วค่อย redirect
             // ไม่ต้อง redirect ที่นี่ ให้ useEffect ด้านล่างจัดการ
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Login failed:", err);
             const errorMessage = mapFirebaseErrorToThai(err);
             setError(errorMessage);
