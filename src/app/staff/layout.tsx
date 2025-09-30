@@ -35,6 +35,15 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
             <ListItemText primary="Report" />
           </ListItemButton>
         </ListItem>
+        {/* เพิ่มเมนู Audit Log */}
+        <ListItem disablePadding>
+          <ListItemButton LinkComponent={Link} href="/staff/audit-log">
+            <ListItemIcon>
+              <AssessmentIcon /> {/* เปลี่ยนไอคอนตามความเหมาะสม */}
+            </ListItemIcon>
+            <ListItemText primary="Audit Log" />
+          </ListItemButton>
+        </ListItem>
       </List>
       <Box sx={{ flexGrow: 1 }} />
       <Divider />

@@ -40,8 +40,8 @@ const StaffDashboard = () => {
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           const pathParts = doc.ref.path.split('/');
-          const uid = pathParts[1];
-          const sid = pathParts[3];
+          const uid = pathParts[1]; // users/{uid}
+          const sid = pathParts[3]; // submissions/{sid}
 
           pubs.push({
             id: doc.id,
@@ -51,13 +51,13 @@ const StaffDashboard = () => {
             abstract: data?.basics?.abstract || "",
             year: data?.basics?.year || "-",
             type: data?.basics?.type || "Unknown",
-            level: data?.basics?.level || "Unknown",
-            keywords: data?.basics?.keywords || [],
+            level: data?.keywords?.level || "Unknown", // อยู่ใน keywords
+            keywords: data?.keywords || [],
             authors: data?.authors || [],
             submitter: data?.authors?.[0]?.name || "Unknown",
             files: data?.attachments?.files || [],
             doi: data?.identifiers?.doi || "",
-            references: data?.identifiers?.references || [],
+            references: data?.references || [],
             submitted: data?.submittedAt
               ? new Date(data.submittedAt.seconds * 1000).toLocaleString()
               : "N/A",
@@ -80,8 +80,7 @@ const StaffDashboard = () => {
     try {
       const fileRef = ref(storage, filePath);
       const url = await getDownloadURL(fileRef);
-      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (newWindow) newWindow.opener = null;
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("Error opening file:", error);
       alert("ไม่สามารถเปิดไฟล์ได้: " + filePath);
