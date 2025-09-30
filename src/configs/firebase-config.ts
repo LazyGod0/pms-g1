@@ -23,4 +23,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// เช็คว่า Firebase เชื่อมต่อสำเร็จหรือไม่
+console.log("Firebase initialized successfully");
+console.log("Project ID:", firebaseConfig.projectId);
+
 export {auth,db}
