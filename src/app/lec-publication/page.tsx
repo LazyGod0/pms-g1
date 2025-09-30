@@ -1,49 +1,23 @@
 "use client";
 
 import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  IconButton,
-  InputAdornment,
-  Menu,
-  MenuItem,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
-  Select,
-  FormControl,
-  InputLabel,
-  SelectChangeEvent,
-  Tabs,
-  Tab,
-  useMediaQuery,
-  Card,
-  CardContent,
+  Box, Button, Chip, Container, Divider, IconButton, InputAdornment, Menu, MenuItem, Paper, Stack, Table,
+  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, Select, FormControl,
+  InputLabel, SelectChangeEvent, Tabs, Tab, useMediaQuery, Card, CardContent,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import ErrorOutlineOutlinedIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useMemo, useState, MouseEvent, useEffect } from "react";
 import dayjs from "dayjs";
 
-// --- FIREBASE ---
-import { auth, db } from "@/configs/firebase-config"; // <-- adjust if your exports differ
+import { auth, db } from "@/configs/firebase-config";
 import {
   collection,
   doc,
@@ -55,7 +29,6 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
-// ---------------- Types ----------------
 export type Pub = {
   id: string;
   title: string;
@@ -63,9 +36,9 @@ export type Pub = {
   year: number;
   type: "Journal" | "Conference" | "Book";
   level: "International" | "National" | "Local";
-  status: "Draft" | "Pending" | "Needs Fix" | "Approved" | "Rejected";
+  status: "Draft" | "Submitted" | "Approved" | "Rejected";
   doi?: string;
-  updatedAt: string; // ISO
+  updatedAt: string;
   faculty?: string;
 };
 
@@ -74,40 +47,52 @@ const statusColor: Record<
   "default" | "warning" | "success" | "error" | "info"
 > = {
   Draft: "default",
-  Pending: "warning",
-  "Needs Fix": "info",
+  Submitted: "warning",
   Approved: "success",
   Rejected: "error",
 };
 
 function StatusChip({ status }: { status: Pub["status"] }) {
+  const displayLabel = status === "Submitted" ? "Pending Review" : status;
   const icon =
     status === "Approved" ? (
       <CheckCircleRoundedIcon fontSize="small" />
-    ) : status === "Pending" ? (
+    ) : status === "Submitted" ? (
       <PendingActionsOutlinedIcon fontSize="small" />
-    ) : status === "Needs Fix" ? (
-      <ErrorOutlineOutlinedIcon fontSize="small" />
+    ) : status === "Rejected" ? (
+      <CancelRoundedIcon fontSize="small" />
+    ) : status === "Draft" ? (
+      <DescriptionOutlinedIcon fontSize="small" />
     ) : null;
+
+  const draftStyle =
+    status === "Draft"
+      ? {
+        bgcolor: (t: any) =>
+          t.palette.mode === "dark" ? t.palette.grey[800] : t.palette.grey[300],
+        color: (t: any) =>
+          t.palette.mode === "dark" ? t.palette.grey[100] : t.palette.grey[900],
+        borderColor: (t: any) =>
+          t.palette.mode === "dark" ? t.palette.grey[700] : t.palette.grey[400],
+      }
+      : {};
 
   return (
     <Chip
-      label={status}
+      label={displayLabel}
       color={statusColor[status]}
       size="small"
-      variant={status === "Draft" ? "outlined" : "filled"}
+      variant={status === "Draft" ? "filled" : "filled"}
       icon={icon ?? undefined}
-      sx={{ fontWeight: 600 }}
+      sx={{ fontWeight: 600, ...draftStyle }}
     />
   );
 }
 
-// ---------- Helpers to map Firestore -> UI ----------
 const toTitle = (s?: string) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : undefined;
 
 function tsToISO(v: any): string | undefined {
-  // accept Firestore Timestamp, Date, string
   if (!v) return undefined;
   if (v instanceof Timestamp) return v.toDate().toISOString();
   if (v instanceof Date) return v.toISOString();
@@ -115,25 +100,33 @@ function tsToISO(v: any): string | undefined {
   return undefined;
 }
 
+function normalizeStatus(raw?: string): Pub["status"] {
+  const s = (raw || "").toLowerCase();
+  if (s === "approved") return "Approved";
+  if (s === "rejected") return "Rejected";
+  if (s === "submitted") return "Submitted";
+  if (s === "pending" || s === "needs fix" || s === "needsfix") return "Submitted";
+  return "Draft";
+}
+
 function mapSubmissionToPub(
   id: string,
   d: any,
-  userDoc?: any // for faculty (optional)
+  userDoc?: any
 ): Pub {
   const basics = d?.basics ?? {};
   const identifiers = d?.identifiers ?? {};
   const statusRaw: string = d?.status ?? "draft";
-
   const authors = Array.isArray(d?.authors)
     ? d.authors.map((a: any) => ({
-        name: a?.name ?? "",
-        tag:
-          a?.authorType === "External"
-            ? "External"
-            : a?.authorType === "Internal"
+      name: a?.name ?? "",
+      tag:
+        a?.authorType === "External"
+          ? "External"
+          : a?.authorType === "Internal"
             ? "Internal"
             : undefined,
-      }))
+    }))
     : [];
 
   const updatedAt =
@@ -149,7 +142,7 @@ function mapSubmissionToPub(
     year: Number(basics?.year ?? new Date().getFullYear()),
     type: (toTitle(basics?.type) as Pub["type"]) ?? "Conference",
     level: (toTitle(basics?.level) as Pub["level"]) ?? "National",
-    status: (toTitle(statusRaw) as Pub["status"]) ?? "Draft",
+    status: normalizeStatus(statusRaw),
     doi: identifiers?.doi || undefined,
     updatedAt,
     faculty: userDoc?.faculty || undefined,
@@ -157,30 +150,19 @@ function mapSubmissionToPub(
 }
 
 export default function PublicationsPage() {
-  // -------- data from Firestore --------
   const [data, setData] = useState<Pub[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | undefined>();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      // if (!user) {
-      //   setData([]);
-      //   setLoading(false);
-      //   setErr("Not signed in.");
-      //   return;
-      // }
       try {
         setLoading(true);
         setErr(undefined);
-
-        // /users/{uid}
-        const FIXED_UID = "TUtYsDTbvEOy50N1AVhe";
+        const FIXED_UID = "YZUhXqGmf1U24zmdxYvV";
         const userRef = doc(db, "users", FIXED_UID);
         const userSnap = await getDoc(userRef);
         const userDoc = userSnap.exists() ? userSnap.data() : undefined;
-
-        // /users/{uid}/submissions ordered
         const subCol = collection(db, "users", FIXED_UID, "submissions");
         const q = query(
           subCol,
@@ -204,32 +186,24 @@ export default function PublicationsPage() {
     return () => unsub();
   }, []);
 
-  // -------- filters --------
   const [queryTxt, setQueryTxt] = useState("");
   const [year, setYear] = useState<string>("All Years");
   const [type, setType] = useState<string>("All Types");
   const [level, setLevel] = useState<string>("All Levels");
-
-  // tabs
-  type TabKey =
-    | "All"
-    | "Draft"
-    | "Pending"
-    | "Needs Fix"
-    | "Approved"
-    | "Rejected";
+  type TabKey = "All" | "Approved" | "Rejected" | "Pending Review" | "Draft";
   const [tab, setTab] = useState<TabKey>("All");
-
-  // menu
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const openMenu = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget);
   const closeMenu = () => setAnchor(null);
-
   const isSm = useMediaQuery("(max-width:900px)");
-
   const filtered = useMemo(() => {
     return data.filter((p) => {
-      const matchTab = tab === "All" ? true : p.status === tab;
+      const matchTab =
+        tab === "All"
+          ? true
+          : tab === "Pending Review"
+            ? p.status === "Submitted"
+            : p.status === tab;
       const matchQuery =
         queryTxt.trim() === "" ||
         [p.title, p.authors.map((a) => a.name).join(", "), p.doi]
@@ -248,16 +222,16 @@ export default function PublicationsPage() {
       data.reduce(
         (acc, p) => {
           acc.All += 1;
-          acc[p.status as TabKey] += 1;
+          if (p.status === "Submitted") acc["Pending Review"] += 1;
+          else acc[p.status as Exclude<TabKey, "All" | "Pending Review">] += 1;
           return acc;
         },
         {
           All: 0,
-          Draft: 0,
-          Pending: 0,
-          "Needs Fix": 0,
           Approved: 0,
           Rejected: 0,
+          "Pending Review": 0,
+          Draft: 0,
         } as Record<TabKey, number>
       ),
     [data]
@@ -282,7 +256,6 @@ export default function PublicationsPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
       <Stack
         direction="row"
         alignItems="center"
@@ -308,7 +281,6 @@ export default function PublicationsPage() {
         </Button>
       </Stack>
 
-      {/* Filters */}
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
@@ -386,8 +358,6 @@ export default function PublicationsPage() {
           </Button>
         </Stack>
       </Paper>
-
-      {/* Tabs */}
       <Paper variant="outlined" sx={{ borderRadius: 3, mb: 2 }}>
         <Tabs
           value={tab}
@@ -404,7 +374,7 @@ export default function PublicationsPage() {
           }}
         >
           {(
-            ["All", "Draft", "Pending", "Needs Fix", "Approved", "Rejected"] as TabKey[]
+            ["All", "Approved", "Rejected", "Pending Review", "Draft"] as TabKey[]
           ).map((k) => (
             <Tab
               key={k}
@@ -419,8 +389,6 @@ export default function PublicationsPage() {
           ))}
         </Tabs>
       </Paper>
-
-      {/* Table */}
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="medium">
           <TableHead>
@@ -517,7 +485,6 @@ export default function PublicationsPage() {
         </Table>
       </TableContainer>
 
-      {/* Footer stats */}
       <Paper variant="outlined" sx={{ mt: 3, p: 2.5, borderRadius: 3 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <StatCard label="Total Shown" value={filtered.length} />
@@ -539,11 +506,8 @@ export default function PublicationsPage() {
         </Stack>
       </Paper>
 
-      {/* Row menu (placeholder actions) */}
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={closeMenu}>
-        <MenuItem onClick={closeMenu}>View</MenuItem>
         <MenuItem onClick={closeMenu}>Edit</MenuItem>
-        <MenuItem onClick={closeMenu}>Duplicate</MenuItem>
         <MenuItem onClick={closeMenu}>Delete</MenuItem>
       </Menu>
     </Container>

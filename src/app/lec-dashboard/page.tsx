@@ -1,39 +1,19 @@
 'use client';
 
 import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  IconButton,
-  Paper,
-  Stack,
-  Typography,
+  Box, Button, Container, Divider, Paper, Stack, Typography,
 } from '@mui/material';
-import Grid from '@mui/material/Grid'; // keep your Grid import as-is
+import Grid from '@mui/material/Grid';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
-import BuildCircleOutlinedIcon from '@mui/icons-material/BuildCircleOutlined';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
-import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
-import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
-import DraftsOutlinedIcon from '@mui/icons-material/DraftsOutlined';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-// --- Firebase ---
-import { auth, db } from '@/configs/firebase-config'; // <-- adjust if your exports differ
-import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  limit,
-  Timestamp,
-} from 'firebase/firestore';
+import { auth, db } from '@/configs/firebase-config';
+import { collection, getDocs, orderBy, query, limit, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 type Activity = {
@@ -41,7 +21,7 @@ type Activity = {
   title: string;
   subtitle: string;
   date: string;
-  status: 'approved' | 'submitted' | 'draft';
+  status: 'approved' | 'rejected' | 'submitted' | 'draft';
 };
 
 type SubmissionDoc = {
@@ -51,16 +31,20 @@ type SubmissionDoc = {
     type?: 'Journal' | 'Conference' | 'Book' | string;
     level?: 'International' | 'National' | 'Local' | string;
   };
-  status?: 'Draft' | 'Pending' | 'Needs Fix' | 'Approved' | 'Rejected' | string;
+  status?: 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | string;
   createdAt?: Timestamp;
   submittedAt?: Timestamp;
   reviewedAt?: Timestamp;
 };
 
-type TrendPoint = { year: number; value: number; max: number };
+const normalizeStatus = (s?: string) => {
+  if (!s) return undefined;
+  const key = s.trim().toLowerCase();
+  if (key === 'pending' || key === 'needs fix') return 'Submitted';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
 
-const titleCase = (s?: string) =>
-  s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : undefined;
+type TrendPoint = { year: number; value: number; max: number };
 
 function tsToDate(x?: any): Date | undefined {
   if (!x) return undefined;
@@ -68,6 +52,18 @@ function tsToDate(x?: any): Date | undefined {
   if (x instanceof Date) return x;
   if (typeof x === 'string') return new Date(x);
   return undefined;
+}
+
+function formatThaiDateTime(dt: Date) {
+  return new Intl.DateTimeFormat('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Bangkok',
+  }).format(dt);
 }
 
 function StatCard({
@@ -102,18 +98,18 @@ function StatCard({
               color === 'success'
                 ? t.palette.success.light + '33'
                 : color === 'error'
-                ? t.palette.error.light + '33'
-                : color === 'warning'
-                ? t.palette.warning.light + '33'
-                : t.palette.action.hover,
+                  ? t.palette.error.light + '33'
+                  : color === 'warning'
+                    ? t.palette.warning.light + '33'
+                    : t.palette.action.hover,
             color:
               color === 'success'
                 ? t.palette.success.main
                 : color === 'error'
-                ? t.palette.error.main
-                : color === 'warning'
-                ? t.palette.warning.main
-                : t.palette.text.secondary,
+                  ? t.palette.error.main
+                  : color === 'warning'
+                    ? t.palette.warning.main
+                    : t.palette.text.secondary,
           })}
         >
           {icon}
@@ -134,24 +130,15 @@ function StatCard({
 
 function ActivityIcon({ status }: { status: Activity['status'] }) {
   const common = { fontSize: 20 };
-  if (status === 'approved')
-    return <CheckCircleRoundedIcon color="success" sx={common} />;
-  if (status === 'submitted')
-    return <AccessTimeRoundedIcon color="warning" sx={common} />;
-  return <DraftsOutlinedIcon color="info" sx={common} />;
+  if (status === 'approved') return <CheckCircleRoundedIcon color="success" sx={common} />;
+  if (status === 'rejected') return <CancelRoundedIcon color="error" sx={common} />;
+  if (status === 'submitted') return <PendingActionsOutlinedIcon color="warning" sx={common} />;
+  return <DescriptionOutlinedIcon color="inherit" sx={common} />; // draft
 }
 
 function ActivityItem({ item }: { item: Activity }) {
   return (
-    <Stack
-      direction="row"
-      spacing={2}
-      alignItems="flex-start"
-      sx={{
-        px: 2,
-        py: 1.5,
-      }}
-    >
+    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ px: 2, py: 1.5 }}>
       <Box
         sx={{
           width: 28,
@@ -160,6 +147,7 @@ function ActivityItem({ item }: { item: Activity }) {
           display: 'grid',
           placeItems: 'center',
           bgcolor: 'action.hover',
+          color: 'text.secondary',
           flex: '0 0 auto',
           mt: 0.2,
         }}
@@ -186,15 +174,7 @@ function ActivityItem({ item }: { item: Activity }) {
   );
 }
 
-function TrendRow({
-  year,
-  value,
-  max,
-}: {
-  year: number;
-  value: number;
-  max: number;
-}) {
+function TrendRow({ year, value, max }: { year: number; value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
   return (
     <Stack direction="row" spacing={2} alignItems="center">
@@ -212,13 +192,7 @@ function TrendRow({
             overflow: 'hidden',
           })}
         >
-          <Box
-            sx={(t) => ({
-              width: `${pct}%`,
-              height: '100%',
-              bgcolor: t.palette.primary.main,
-            })}
-          />
+          <Box sx={(t) => ({ width: `${pct}%`, height: '100%', bgcolor: t.palette.primary.main })} />
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ width: 16, textAlign: 'right' }}>
@@ -231,78 +205,51 @@ function TrendRow({
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState(0);
-  const [pending, setPending] = useState(0);
-  const [needsFix, setNeedsFix] = useState(0);
+  const [submitted, setSubmitted] = useState(0);
   const [approved, setApproved] = useState(0);
   const [rejected, setRejected] = useState(0);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
-  const [facultyLine, setFacultyLine] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      // if (!user) {
-      //   setLoading(false);
-      //   setActivities([]);
-      //   return;
-      // }
-
-      // setDisplayName(user.displayName ?? undefined);
-
+    const unsub = onAuthStateChanged(auth, async () => {
       try {
         setLoading(true);
-
-        // Read this lecturer's submissions
-        const FIXED_UID = "TUtYsDTbvEOy50N1AVhe";
+        const FIXED_UID = 'YZUhXqGmf1U24zmdxYvV';
         const subCol = collection(db, 'users', FIXED_UID, 'submissions');
-
-        // For activities list, we need most recent first
         const qRecent = query(subCol, orderBy('createdAt', 'desc'), limit(10));
         const snap = await getDocs(qRecent);
 
         let cDraft = 0,
-          cPending = 0,
-          cNeedsFix = 0,
+          cSubmitted = 0,
           cApproved = 0,
           cRejected = 0;
 
         const act: Activity[] = [];
         const perYear: Record<number, number> = {};
-
         const nowYear = new Date().getFullYear();
         const windowYears = Array.from({ length: 5 }, (_, i) => nowYear - 4 + i);
 
         snap.docs.forEach((d) => {
           const data = d.data() as SubmissionDoc;
-
-          const s = titleCase(data.status) as
-            | 'Draft'
-            | 'Pending'
-            | 'Needs Fix'
-            | 'Approved'
-            | 'Rejected'
-            | undefined;
+          const s = normalizeStatus(data.status) as 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | undefined;
 
           if (s === 'Draft') cDraft++;
-          else if (s === 'Pending') cPending++;
-          else if (s === 'Needs Fix') cNeedsFix++;
+          else if (s === 'Submitted') cSubmitted++;
           else if (s === 'Approved') cApproved++;
           else if (s === 'Rejected') cRejected++;
 
-          // Activities: pick a date preferring reviewedAt > submittedAt > createdAt
-          const dt =
-            tsToDate(data.reviewedAt) ||
-            tsToDate(data.submittedAt) ||
-            tsToDate(data.createdAt) ||
-            new Date();
+          let dt: Date | undefined;
+          if (s === 'Submitted') dt = tsToDate(data.submittedAt) || tsToDate(data.createdAt);
+          else if (s === 'Approved' || s === 'Rejected') dt = tsToDate(data.reviewedAt) || tsToDate(data.submittedAt) || tsToDate(data.createdAt);
+          else dt = tsToDate(data.createdAt);
 
           const statusForActivity: Activity['status'] =
-            s === 'Approved'
-              ? 'approved'
-              : s === 'Draft'
-              ? 'draft'
-              : 'submitted';
+            s === 'Approved' ? 'approved'
+              : s === 'Rejected' ? 'rejected'
+                : s === 'Submitted' ? 'submitted'
+                  : 'draft';
 
           act.push({
             id: d.id,
@@ -310,29 +257,21 @@ export default function DashboardPage() {
             subtitle:
               s === 'Approved'
                 ? 'Your publication has been approved'
-                : s === 'Needs Fix'
-                ? 'Changes requested'
-                : s === 'Pending'
-                ? 'Publication submitted for review'
                 : s === 'Rejected'
-                ? 'Publication was rejected'
-                : 'Draft saved',
-            date: dt.toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: '2-digit',
-            }),
+                  ? 'Publication was rejected'
+                  : s === 'Submitted'
+                    ? 'Publication submitted for review'
+                    : 'Draft saved',
+            date: formatThaiDateTime(dt || new Date()),
             status: statusForActivity,
           });
 
-          // Trend counts by basics.year
           const by = Number(data.basics?.year ?? NaN);
           if (!Number.isNaN(by) && windowYears.includes(by)) {
             perYear[by] = (perYear[by] ?? 0) + 1;
           }
         });
 
-        // Fill 5-year window, compute max
         const maxVal = Math.max(1, ...Array.from({ length: 5 }, (_, i) => perYear[nowYear - 4 + i] ?? 0));
         const trendArr: TrendPoint[] = Array.from({ length: 5 }, (_, i) => {
           const y = nowYear - 4 + i;
@@ -341,8 +280,7 @@ export default function DashboardPage() {
         });
 
         setDraft(cDraft);
-        setPending(cPending);
-        setNeedsFix(cNeedsFix);
+        setSubmitted(cSubmitted);
         setApproved(cApproved);
         setRejected(cRejected);
         setActivities(act);
@@ -358,76 +296,43 @@ export default function DashboardPage() {
   return (
     <Box sx={{ py: 4, bgcolor: 'white', minHeight: '100vh' }}>
       <Container maxWidth="lg">
-        {/* Top bar */}
         <Stack direction="row" alignItems="start" justifyContent="space-between" sx={{ mb: 3 }}>
           <Box>
             <Typography variant="h5" fontWeight={800} color="black">
               {`Welcome back${displayName ? `, ${displayName}` : ''}`}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {/* If you later read /users/{uid} you can place Faculty/Dept info here */}
               Faculty dashboard
             </Typography>
           </Box>
 
-        <Button
-            variant="contained"
-            startIcon={<AddRoundedIcon />}
-            sx={{ borderRadius: 2 }}
-          >
+          <Button variant="contained" startIcon={<AddRoundedIcon />} sx={{ borderRadius: 2 }}>
             New Submission
           </Button>
         </Stack>
-
-        {/* Stat cards */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid size={{ xs: 12,sm:6, md: 3 }}>
-            <StatCard
-              icon={<DescriptionOutlinedIcon />}
-              label="Draft"
-              value={draft}
-            />
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard icon={<CheckCircleRoundedIcon />} label="Approved" value={approved} color="success" />
           </Grid>
 
-          <Grid size={{ xs: 12,sm:6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard icon={<CancelRoundedIcon />} label="Rejected" value={rejected} color="error" />
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <StatCard
               icon={<PendingActionsOutlinedIcon />}
               label="Pending Review"
-              value={pending}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12,sm:6, md: 3 }}>
-            <StatCard
-              icon={<BuildCircleOutlinedIcon />}
-              label="Needs Fix"
-              value={needsFix}
+              value={submitted}
               color="warning"
             />
           </Grid>
 
-          <Grid size={{ xs: 12,sm:6, md: 3 }}>
-            <StatCard
-              icon={<CheckCircleRoundedIcon />}
-              label="Approved"
-              value={approved}
-              color="success"
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12,sm:6, md: 3 }}>
-            <StatCard
-              icon={<CancelRoundedIcon />}
-              label="Rejected"
-              value={rejected}
-              color="error"
-            />
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <StatCard icon={<DescriptionOutlinedIcon />} label="Draft" value={draft} />
           </Grid>
         </Grid>
-
-        {/* Main panels */}
         <Grid container spacing={3}>
-          {/* Recent Activity */}
           <Grid size={{ xs: 12, md: 7.5 }}>
             <Paper
               elevation={0}
