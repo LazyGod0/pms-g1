@@ -5,18 +5,18 @@ import {
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, Select, FormControl,
   InputLabel, SelectChangeEvent, Tabs, Tab, useMediaQuery, Card, CardContent,
 } from "@mui/material";
+import Pagination from "@mui/material/Pagination";
 import SearchIcon from "@mui/icons-material/Search";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useMemo, useState, MouseEvent, useEffect } from "react";
 import dayjs from "dayjs";
-
 import { auth, db } from "@/configs/firebase-config";
 import {
   collection,
@@ -34,8 +34,8 @@ export type Pub = {
   title: string;
   authors: { name: string; tag?: "External" | "Internal" }[];
   year: number;
-  type: "Journal" | "Conference" | "Book";
-  level: "International" | "National" | "Local";
+  type: "Journal" | "Conference";
+  level: "International" | "National";
   status: "Draft" | "Submitted" | "Approved" | "Rejected";
   doi?: string;
   updatedAt: string;
@@ -68,13 +68,13 @@ function StatusChip({ status }: { status: Pub["status"] }) {
   const draftStyle =
     status === "Draft"
       ? {
-        bgcolor: (t: any) =>
-          t.palette.mode === "dark" ? t.palette.grey[800] : t.palette.grey[300],
-        color: (t: any) =>
-          t.palette.mode === "dark" ? t.palette.grey[100] : t.palette.grey[900],
-        borderColor: (t: any) =>
-          t.palette.mode === "dark" ? t.palette.grey[700] : t.palette.grey[400],
-      }
+          bgcolor: (t: any) =>
+            t.palette.mode === "dark" ? t.palette.grey[800] : t.palette.grey[300],
+          color: (t: any) =>
+            t.palette.mode === "dark" ? t.palette.grey[100] : t.palette.grey[900],
+          borderColor: (t: any) =>
+            t.palette.mode === "dark" ? t.palette.grey[700] : t.palette.grey[400],
+        }
       : {};
 
   return (
@@ -109,24 +109,20 @@ function normalizeStatus(raw?: string): Pub["status"] {
   return "Draft";
 }
 
-function mapSubmissionToPub(
-  id: string,
-  d: any,
-  userDoc?: any
-): Pub {
+function mapSubmissionToPub(id: string, d: any, userDoc?: any): Pub {
   const basics = d?.basics ?? {};
   const identifiers = d?.identifiers ?? {};
   const statusRaw: string = d?.status ?? "draft";
   const authors = Array.isArray(d?.authors)
     ? d.authors.map((a: any) => ({
-      name: a?.name ?? "",
-      tag:
-        a?.authorType === "External"
-          ? "External"
-          : a?.authorType === "Internal"
+        name: a?.name ?? "",
+        tag:
+          a?.authorType === "External"
+            ? "External"
+            : a?.authorType === "Internal"
             ? "Internal"
             : undefined,
-    }))
+      }))
     : [];
 
   const updatedAt =
@@ -149,13 +145,15 @@ function mapSubmissionToPub(
   };
 }
 
+type TabKey = "All" | "Approved" | "Rejected" | "Pending Review" | "Draft";
+
 export default function PublicationsPage() {
   const [data, setData] = useState<Pub[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | undefined>();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async () => {
       try {
         setLoading(true);
         setErr(undefined);
@@ -171,9 +169,7 @@ export default function PublicationsPage() {
         );
         const snap = await getDocs(q);
 
-        const pubs = snap.docs.map((s) =>
-          mapSubmissionToPub(s.id, s.data(), userDoc)
-        );
+        const pubs = snap.docs.map((s) => mapSubmissionToPub(s.id, s.data(), userDoc));
         setData(pubs);
       } catch (e: any) {
         setErr(e?.message ?? "Failed to load");
@@ -190,20 +186,25 @@ export default function PublicationsPage() {
   const [year, setYear] = useState<string>("All Years");
   const [type, setType] = useState<string>("All Types");
   const [level, setLevel] = useState<string>("All Levels");
-  type TabKey = "All" | "Approved" | "Rejected" | "Pending Review" | "Draft";
   const [tab, setTab] = useState<TabKey>("All");
+
+  // ---- Pagination state ----
+  const [page, setPage] = useState(1);
+  const rowsPerPage = 10;
+
+  const isSm = useMediaQuery("(max-width:900px)");
   const [anchor, setAnchor] = useState<null | HTMLElement>(null);
   const openMenu = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget);
   const closeMenu = () => setAnchor(null);
-  const isSm = useMediaQuery("(max-width:900px)");
+
   const filtered = useMemo(() => {
     return data.filter((p) => {
       const matchTab =
         tab === "All"
           ? true
           : tab === "Pending Review"
-            ? p.status === "Submitted"
-            : p.status === tab;
+          ? p.status === "Submitted"
+          : p.status === tab;
       const matchQuery =
         queryTxt.trim() === "" ||
         [p.title, p.authors.map((a) => a.name).join(", "), p.doi]
@@ -237,6 +238,25 @@ export default function PublicationsPage() {
     [data]
   );
 
+  // จำนวนหน้าทั้งหมด (อย่างน้อย 1)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+
+  // ถ้าเปลี่ยนตัวกรอง/แท็บ/ค้นหา ให้กลับไปหน้า 1
+  useEffect(() => {
+    setPage(1);
+  }, [queryTxt, year, type, level, tab]);
+
+  // กันกรณี page > totalPages (เช่นข้อมูลเหลือน้อยลง)
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  // ข้อมูลเฉพาะหน้าปัจจุบัน
+  const paginated = useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    return filtered.slice(start, start + rowsPerPage);
+  }, [filtered, page]);
+
   const clearFilters = () => {
     setQueryTxt("");
     setYear("All Years");
@@ -245,14 +265,12 @@ export default function PublicationsPage() {
   };
 
   const years = useMemo(() => {
-    const ys = Array.from(new Set(data.map((m) => m.year))).sort(
-      (a, b) => b - a
-    );
+    const ys = Array.from(new Set(data.map((m) => m.year))).sort((a, b) => b - a);
     return ["All Years", ...ys.map(String)];
   }, [data]);
 
-  const types = ["All Types", "Journal", "Conference", "Book"];
-  const levels = ["All Levels", "International", "National", "Local"];
+  const types = ["All Types", "Journal", "Conference"];
+  const levels = ["All Levels", "International", "National"];
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -348,16 +366,12 @@ export default function PublicationsPage() {
             </Select>
           </FormControl>
 
-          <Button
-            onClick={clearFilters}
-            variant="outlined"
-            color="inherit"
-            sx={{ whiteSpace: "nowrap" }}
-          >
+          <Button onClick={clearFilters} variant="outlined" color="inherit" sx={{ whiteSpace: "nowrap" }}>
             Clear
           </Button>
         </Stack>
       </Paper>
+
       <Paper variant="outlined" sx={{ borderRadius: 3, mb: 2 }}>
         <Tabs
           value={tab}
@@ -373,22 +387,23 @@ export default function PublicationsPage() {
             },
           }}
         >
-          {(
-            ["All", "Approved", "Rejected", "Pending Review", "Draft"] as TabKey[]
-          ).map((k) => (
-            <Tab
-              key={k}
-              value={k}
-              label={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>{k}</span>
-                  <Chip size="small" label={counts[k]} />
-                </Stack>
-              }
-            />
-          ))}
+          {(["All", "Approved", "Rejected", "Pending Review", "Draft"] as TabKey[]).map(
+            (k) => (
+              <Tab
+                key={k}
+                value={k}
+                label={
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <span>{k}</span>
+                    <Chip size="small" label={counts[k]} />
+                  </Stack>
+                }
+              />
+            )
+          )}
         </Tabs>
       </Paper>
+
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="medium">
           <TableHead>
@@ -413,7 +428,7 @@ export default function PublicationsPage() {
             )}
 
             {!loading &&
-              filtered.map((p) => (
+              paginated.map((p) => (
                 <TableRow key={p.id} hover>
                   <TableCell>
                     <Typography fontWeight={700} sx={{ mb: 0.5 }}>
@@ -485,24 +500,31 @@ export default function PublicationsPage() {
         </Table>
       </TableContainer>
 
+      {/* แถบเพจจิ้ง */}
+      <Stack direction="row" justifyContent="center" sx={{ mt: 2 }}>
+        <Pagination
+          page={page}
+          count={totalPages}
+          onChange={(_, v) => setPage(v)}
+          color="primary"
+          shape="rounded"
+          siblingCount={1}
+          boundaryCount={1}
+        />
+      </Stack>
+
       <Paper variant="outlined" sx={{ mt: 3, p: 2.5, borderRadius: 3 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <StatCard label="Total Shown" value={filtered.length} />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-          <StatCard
-            label="Journals"
-            value={filtered.filter((p) => p.type === "Journal").length}
-          />
+          <StatCard label="Journals" value={filtered.filter((p) => p.type === "Journal").length} />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
           <StatCard
             label="International"
             value={filtered.filter((p) => p.level === "International").length}
           />
           <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-          <StatCard
-            label="Approved"
-            value={filtered.filter((p) => p.status === "Approved").length}
-          />
+          <StatCard label="Approved" value={filtered.filter((p) => p.status === "Approved").length} />
         </Stack>
       </Paper>
 

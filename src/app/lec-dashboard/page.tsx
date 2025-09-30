@@ -218,27 +218,14 @@ export default function DashboardPage() {
         setLoading(true);
         const FIXED_UID = 'YZUhXqGmf1U24zmdxYvV';
         const subCol = collection(db, 'users', FIXED_UID, 'submissions');
-        const qRecent = query(subCol, orderBy('createdAt', 'desc'), limit(10));
-        const snap = await getDocs(qRecent);
+        const qRecent = query(subCol, orderBy('createdAt', 'desc'), limit(5));
+        const snapRecent = await getDocs(qRecent);
+        const snapAll = await getDocs(subCol);
 
-        let cDraft = 0,
-          cSubmitted = 0,
-          cApproved = 0,
-          cRejected = 0;
-
-        const act: Activity[] = [];
-        const perYear: Record<number, number> = {};
-        const nowYear = new Date().getFullYear();
-        const windowYears = Array.from({ length: 5 }, (_, i) => nowYear - 4 + i);
-
-        snap.docs.forEach((d) => {
+        const recentActivities: Activity[] = [];
+        snapRecent.docs.forEach((d) => {
           const data = d.data() as SubmissionDoc;
           const s = normalizeStatus(data.status) as 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | undefined;
-
-          if (s === 'Draft') cDraft++;
-          else if (s === 'Submitted') cSubmitted++;
-          else if (s === 'Approved') cApproved++;
-          else if (s === 'Rejected') cRejected++;
 
           let dt: Date | undefined;
           if (s === 'Submitted') dt = tsToDate(data.submittedAt) || tsToDate(data.createdAt);
@@ -251,20 +238,33 @@ export default function DashboardPage() {
                 : s === 'Submitted' ? 'submitted'
                   : 'draft';
 
-          act.push({
+          recentActivities.push({
             id: d.id,
             title: data.basics?.title || '(Untitled)',
             subtitle:
-              s === 'Approved'
-                ? 'Your publication has been approved'
-                : s === 'Rejected'
-                  ? 'Publication was rejected'
-                  : s === 'Submitted'
-                    ? 'Publication submitted for review'
+              s === 'Approved' ? 'Your publication has been approved'
+                : s === 'Rejected' ? 'Publication was rejected'
+                  : s === 'Submitted' ? 'Publication submitted for review'
                     : 'Draft saved',
             date: formatThaiDateTime(dt || new Date()),
             status: statusForActivity,
           });
+        });
+
+        let cDraft = 0, cSubmitted = 0, cApproved = 0, cRejected = 0;
+
+        const perYear: Record<number, number> = {};
+        const nowYear = new Date().getFullYear();
+        const windowYears = Array.from({ length: 5 }, (_, i) => nowYear - 4 + i);
+
+        snapAll.docs.forEach((d) => {
+          const data = d.data() as SubmissionDoc;
+          const s = normalizeStatus(data.status) as 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | undefined;
+
+          if (s === 'Draft') cDraft++;
+          else if (s === 'Submitted') cSubmitted++;
+          else if (s === 'Approved') cApproved++;
+          else if (s === 'Rejected') cRejected++;
 
           const by = Number(data.basics?.year ?? NaN);
           if (!Number.isNaN(by) && windowYears.includes(by)) {
@@ -272,19 +272,20 @@ export default function DashboardPage() {
           }
         });
 
-        const maxVal = Math.max(1, ...Array.from({ length: 5 }, (_, i) => perYear[nowYear - 4 + i] ?? 0));
-        const trendArr: TrendPoint[] = Array.from({ length: 5 }, (_, i) => {
-          const y = nowYear - 4 + i;
-          const v = perYear[y] ?? 0;
-          return { year: y, value: v, max: maxVal };
-        });
+        const maxVal = Math.max(1, ...windowYears.map(y => perYear[y] ?? 0));
+        const trendArr: TrendPoint[] = windowYears.map((y) => ({
+          year: y,
+          value: perYear[y] ?? 0,
+          max: maxVal,
+        }));
 
+        setActivities(recentActivities);
         setDraft(cDraft);
         setSubmitted(cSubmitted);
         setApproved(cApproved);
         setRejected(cRejected);
-        setActivities(act);
         setTrend(trendArr);
+
       } finally {
         setLoading(false);
       }
@@ -292,6 +293,7 @@ export default function DashboardPage() {
 
     return () => unsub();
   }, []);
+
 
   return (
     <Box sx={{ py: 4, bgcolor: 'white', minHeight: '100vh' }}>
