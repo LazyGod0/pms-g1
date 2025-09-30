@@ -180,8 +180,8 @@ export default function ReviewPublicationPage() {
         </Typography>
       </Stack>
 
-      <Button component={Link} href="/staff/review" startIcon={<ArrowBackIosNewIcon fontSize="small" />} sx={{ mb: 1 }}>
-        Back to Review Queue
+      <Button component={Link} href="/staff/dashboard" startIcon={<ArrowBackIosNewIcon fontSize="small" />} sx={{ mb: 1 }}>
+        Back to Dashboard
       </Button>
 
       {/* Header */}

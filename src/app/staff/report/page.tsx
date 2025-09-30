@@ -14,44 +14,87 @@ import { PublicationsTable } from '@/components/StaffReport/PublicationsTable';
 import { exportCSV, exportPDF } from '@/components/StaffReport/export';
 
 export default function ReportPage() {
-  const [filters, setFilters] = React.useState<FiltersState>({ yearFrom: 2020, yearTo: 2024, faculty: 'All Faculties', type: 'All', level: 'All' });
+  const [filters, setFilters] = React.useState<FiltersState>({
+    yearFrom: 2020,
+    yearTo: 2024,
+    faculty: 'All Faculties',
+    type: 'All',
+    level: 'All',
+  });
   const [rows, setRows] = React.useState([] as Awaited<ReturnType<typeof fetchPublications>>);
 
-  const reload = React.useCallback(async ()=>{
-    const data = await fetchPublications(filters as ReportFilters);
+  const reload = React.useCallback(async () => {
+    let data = await fetchPublications(filters as ReportFilters);
+
+    // ✅ กรองออก เหลือแค่ Approved / Rejected
+    data = data.filter((r) => {
+      const status = r.status?.toLowerCase();
+      return status === 'approved' || status === 'rejected';
+    });
+
     setRows(data);
   }, [filters]);
 
-  React.useEffect(()=>{ reload(); }, [reload]);
+  React.useEffect(() => {
+    reload();
+  }, [reload]);
 
+  // ===== Stats =====
   const total = rows.length;
-  const journals = rows.filter(r=>r.type==='Journal').length;
-  const conferences = rows.filter(r=>r.type==='Conference').length;
-  const intl = rows.filter(r=>r.level==='International').length;
-  const approved = rows.filter(r=>r.status==='Approved').length;
+  const journals = rows.filter((r) => r.type === 'Journal').length;
+  const conferences = rows.filter((r) => r.type === 'Conference').length;
+  const intl = rows.filter((r) => r.level === 'International').length;
+  const natl = rows.filter((r) => r.level === 'National').length;
+  const approved = rows.filter((r) => r.status.toLowerCase() === 'approved').length;
+  const rejected = rows.filter((r) => r.status.toLowerCase() === 'rejected').length;
 
-  const normalizedRows = rows.map(r => ({
+  // ===== Normalize rows for table & export =====
+  const normalizedRows = rows.map((r) => ({
     ...r,
-    authors: (r.authors ?? []).map(a => (typeof a === 'string' ? a : (a?.name ?? '')) )
+    authors: (r.authors ?? []).map((a) => (typeof a === 'string' ? a : a?.name ?? '')),
   }));
 
   return (
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>Report</Typography>
-          <Typography color="text.secondary">Query the information and export as CSV/PDF file</Typography>
+          <Typography variant="h4" fontWeight={700}>
+            Report
+          </Typography>
+          <Typography color="text.secondary">
+            Show only approved and rejected publications. Export as CSV/PDF file
+          </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<GetAppIcon />} onClick={()=>exportCSV(normalizedRows as any)}>Export CSV</Button>
-          <Button variant="contained" startIcon={<PictureAsPdfIcon />} onClick={exportPDF}>Export PDF</Button>
+          <Button
+            variant="outlined"
+            startIcon={<GetAppIcon />}
+            onClick={() => exportCSV(normalizedRows as any)}
+          >
+            Export CSV
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PictureAsPdfIcon />}
+            onClick={exportPDF}
+          >
+            Export PDF
+          </Button>
         </Stack>
       </Stack>
 
       <Filters
         value={filters}
         onChange={setFilters}
-        onClear={()=> setFilters({ yearFrom: 2020, yearTo: 2024, faculty: 'All Faculties', type: 'All', level: 'All' })}
+        onClear={() =>
+          setFilters({
+            yearFrom: 2020,
+            yearTo: 2024,
+            faculty: 'All Faculties',
+            type: 'All',
+            level: 'All',
+          })
+        }
       />
 
       {/* Stats section */}
@@ -60,10 +103,14 @@ export default function ReportPage() {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' },
           gap: 2,
-          mt: 2
+          mt: 2,
         }}
       >
-        <StatCard label="Total Publications" value={total} />
+        <StatCard label="Total (Approved + Rejected)" value={total} />
+        <StatCard label="Journals" value={journals} />
+        <StatCard label="Conferences" value={conferences} />
+        <StatCard label="Approved" value={approved} />
+        <StatCard label="Rejected" value={rejected} />
       </Box>
 
       {/* Charts section */}
@@ -72,7 +119,7 @@ export default function ReportPage() {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
           gap: 2,
-          mt: 2
+          mt: 2,
         }}
       >
         <PublicationsByYear data={normalizedRows as any} />
@@ -86,16 +133,3 @@ export default function ReportPage() {
     </Container>
   );
 }
-
-// =============================
-// QUICK FIRESTORE WIRE-UP (reference)
-// Replace fetchPublications in /lib/dataSource.ts with Firestore query like:
-//
-// import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-// import { db } from '@/lib/firebase';
-// export async function fetchPublications(filters: ReportFilters): Promise<Publication[]> {
-//   const col = collection(db, 'publications');
-//   const q = query(col, orderBy('year'));
-//   const snap = await getDocs(q);
-//   return snap.docs.map(d => ({ id: d.id, ...(d.data() as Publication) }));
-// }

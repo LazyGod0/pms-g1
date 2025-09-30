@@ -23,15 +23,16 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
       </Toolbar>
       <Divider />
       <List>
+
         <ListItem disablePadding>
-          <ListItemButton LinkComponent={Link} href="/staff/dashboard">
-            <ListItemIcon><HomeIcon /></ListItemIcon>
+          <ListItemButton LinkComponent={Link} href="/staff/report">
+            <ListItemIcon><AssessmentIcon /></ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
-          <ListItemButton LinkComponent={Link} href="/staff/report">
-            <ListItemIcon><AssessmentIcon /></ListItemIcon>
+          <ListItemButton LinkComponent={Link} href="/staff/dashboard">
+            <ListItemIcon><HomeIcon /></ListItemIcon>
             <ListItemText primary="Report" />
           </ListItemButton>
         </ListItem>
