@@ -1,10 +1,10 @@
 "use client";
 
 import {
-    Box, Button, Chip, Container, Divider, IconButton, InputAdornment, Menu, MenuItem, Paper, Stack, Table,
+    Box, Button, Chip, Container, IconButton, InputAdornment, Menu, MenuItem, Paper, Stack, Table,
     TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, Select, FormControl,
     InputLabel, SelectChangeEvent, Tabs, Tab, useMediaQuery, Card, CardContent, Dialog, DialogTitle, DialogContent,
-    DialogContentText, DialogActions, Alert, Snackbar, Link,
+    DialogActions, Alert, Snackbar,
 } from "@mui/material";
 import Pagination from "@mui/material/Pagination";
 import SearchIcon from "@mui/icons-material/Search";
@@ -49,7 +49,7 @@ export type Pub = {
     doi?: string;
     updatedAt: string;
     faculty?: string;
-    attachments?: { name: string; url: string; }[]; // New field for attachments
+    attachments?: { name: string; url: string }[]; // เพิ่มฟิลด์ attachments ที่นี่
 };
 
 const statusColor: Record<
@@ -151,12 +151,14 @@ function mapSubmissionToPub(id: string, d: any, userDoc?: any): Pub {
         tsToISO(d?.createdAt) ??
         new Date().toISOString();
 
-    // Map attachments if they exist
-    const attachments = Array.isArray(d?.attachments)
-        ? d.attachments.map((a: any) => ({
-            name: a?.name ?? "",
-            url: a?.url ?? "",
-        }))
+    // แปลงข้อมูลไฟล์แนบจากการส่งผลงาน
+    const attachments = Array.isArray(d?.attachments?.files)
+        ? d.attachments.files
+            .filter((file: any) => file?.url && file.url.trim() !== "") // กรองเฉพาะไฟล์ที่มี URL
+            .map((file: any) => ({
+                name: file?.name ?? "ไฟล์ไม่ระบุชื่อ",
+                url: file.url,
+            }))
         : [];
 
     return {
@@ -170,7 +172,7 @@ function mapSubmissionToPub(id: string, d: any, userDoc?: any): Pub {
         doi: identifiers?.doi || undefined,
         updatedAt,
         faculty: userDoc?.faculty || undefined,
-        attachments, // Include attachments in the mapped publication
+        attachments: attachments,
     };
 }
 
@@ -917,76 +919,67 @@ export default function PublicationsPage() {
                                                     <Typography color="text.disabled">-</Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell sx={{ py: 2, minWidth: 200 }}>
+                                            <TableCell sx={{ py: 2 }}>
                                                 {p.attachments && p.attachments.length > 0 ? (
-                                                    <Stack spacing={1}>
-                                                        {p.attachments.map((attachment, attIndex) => (
-                                                            <Tooltip
-                                                                key={attIndex}
-                                                                title={`ดาวน์โหลด: ${attachment.name}`}
-                                                                arrow
+                                                    <Stack spacing={0.5}>
+                                                        {p.attachments.map((file, index) => (
+                                                            <Stack
+                                                                key={`${file.name}-${index}`}
+                                                                direction="row"
+                                                                spacing={1}
+                                                                alignItems="center"
                                                             >
-                                                                <Link
-                                                                    href={attachment.url}
+                                                                <AttachFileIcon
+                                                                    fontSize="small"
+                                                                    color="primary"
+                                                                />
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    component="a"
+                                                                    href={file.url}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     sx={{
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        gap: 1,
-                                                                        textDecoration: 'none',
+                                                                        textDecoration: "none",
                                                                         color: 'primary.main',
                                                                         fontWeight: 600,
-                                                                        fontSize: '0.875rem',
-                                                                        px: 1.5,
-                                                                        py: 0.5,
-                                                                        borderRadius: 2,
-                                                                        bgcolor: 'rgba(102, 126, 234, 0.1)',
-                                                                        maxWidth: '180px',
-                                                                        transition: 'all 0.3s ease-in-out',
+                                                                        maxWidth: 150,
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis',
+                                                                        whiteSpace: 'nowrap',
+                                                                        '&:hover': {
+                                                                            textDecoration: 'underline',
+                                                                            color: 'primary.dark',
+                                                                        }
+                                                                    }}
+                                                                    title={file.name}
+                                                                >
+                                                                    {file.name}
+                                                                </Typography>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    component="a"
+                                                                    href={file.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    sx={{
+                                                                        p: 0.5,
                                                                         '&:hover': {
                                                                             bgcolor: 'primary.main',
                                                                             color: 'white',
-                                                                            transform: 'translateY(-1px)',
-                                                                            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                                                                        },
+                                                                        }
                                                                     }}
+                                                                    title="ดาวน์โหลดไฟล์"
                                                                 >
                                                                     <GetAppIcon fontSize="small" />
-                                                                    <Typography
-                                                                        variant="body2"
-                                                                        sx={{
-                                                                            whiteSpace: 'nowrap',
-                                                                            overflow: 'hidden',
-                                                                            textOverflow: 'ellipsis',
-                                                                            maxWidth: '120px',
-                                                                        }}
-                                                                    >
-                                                                        {attachment.name.length > 15
-                                                                            ? `${attachment.name.substring(0, 15)}...`
-                                                                            : attachment.name
-                                                                        }
-                                                                    </Typography>
-                                                                </Link>
-                                                            </Tooltip>
+                                                                </IconButton>
+                                                            </Stack>
                                                         ))}
-                                                        {p.attachments.length > 1 && (
-                                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                                                                ({p.attachments.length} ไฟล์)
-                                                            </Typography>
-                                                        )}
                                                     </Stack>
                                                 ) : (
-                                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                                        <AttachFileIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-                                                        <Typography
-                                                            variant="body2"
-                                                            color="text.disabled"
-                                                            fontWeight={500}
-                                                        >
-                                                            ไม่มีไฟล์แนบ
-                                                        </Typography>
-                                                    </Stack>
+                                                    <Typography color="text.disabled" variant="body2">
+                                                        ไม่มี
+                                                    </Typography>
                                                 )}
                                             </TableCell>
                                             <TableCell sx={{ py: 2 }}>

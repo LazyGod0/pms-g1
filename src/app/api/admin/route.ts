@@ -54,7 +54,7 @@ export const POST = async (req: Request) => {
       name, 
       email, 
       role, 
-      faculty, 
+      faculty,
       department, 
       phone
     } = await req.json();

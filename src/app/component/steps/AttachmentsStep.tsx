@@ -116,6 +116,8 @@ export default function AttachmentsStep({ value, onChange, submissionId = "temp"
   };
 
   const getFileIcon = (fileType: string) => {
+    // Add null/undefined check to prevent runtime error
+    if (!fileType) return "📄";
     if (fileType.includes("pdf")) return "📄";
     if (fileType.includes("word")) return "📝";
     if (fileType.includes("image")) return "🖼️";
