@@ -25,15 +25,15 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
       <List>
 
         <ListItem disablePadding>
-          <ListItemButton LinkComponent={Link} href="/staff/report">
+          <ListItemButton LinkComponent={Link} href="/staff/dashboard">
             <ListItemIcon><AssessmentIcon /></ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
-          <ListItemButton LinkComponent={Link} href="/staff/dashboard">
+          <ListItemButton LinkComponent={Link} href="/staff/review-queue">
             <ListItemIcon><HomeIcon /></ListItemIcon>
-            <ListItemText primary="Report" />
+            <ListItemText primary="Review Queue" />
           </ListItemButton>
         </ListItem>
         {/* เพิ่มเมนู Audit Log */}

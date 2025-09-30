@@ -141,8 +141,8 @@ export default function ReviewPublicationPage() {
         status: next,
         reviewedAt: serverTimestamp(),
       });
-      // ✅ อัปเดตเสร็จ → เด้งกลับ Dashboard
-      router.push('/staff/dashboard');
+      // ✅ อัปเดตเสร็จ → เด้งกลับ Review Queue
+      router.push('/staff/review-queue');
     } catch (e) {
       console.error(e);
       alert('Failed to update status');
@@ -167,21 +167,19 @@ export default function ReviewPublicationPage() {
     <Box>
       {/* Breadcrumb */}
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-        <Typography component={Link} href="/staff" color="primary" sx={{ textDecoration: 'none' }}>
-          Home
-        </Typography>
-        <Typography>›</Typography>
-        <Typography component={Link} href="/staff" color="primary" sx={{ textDecoration: 'none' }}>
+  
+
+        <Typography component={Link} href="/staff/dashboard" color="primary" sx={{ textDecoration: 'none' }}>
           Staff Portal
         </Typography>
         <Typography>›</Typography>
-        <Typography component={Link} href="/staff/review" color="primary" sx={{ textDecoration: 'none' }}>
+        <Typography component={Link} href="/staff/review-queue" color="primary" sx={{ textDecoration: 'none' }}>
           Review Queue
         </Typography>
       </Stack>
 
-      <Button component={Link} href="/staff/dashboard" startIcon={<ArrowBackIosNewIcon fontSize="small" />} sx={{ mb: 1 }}>
-        Back to Dashboard
+      <Button component={Link} href="/staff/review-queue" startIcon={<ArrowBackIosNewIcon fontSize="small" />} sx={{ mb: 1 }}>
+        Back to Review Queue
       </Button>
 
       {/* Header */}
