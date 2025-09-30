@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow access to all users collection documents
+    match /users/{document} {
+      allow read, write: if true; // เฉพาะช่วงพัฒนา
+    }
+
+    // Allow access to user submissions
+    match /users/{uid}/submissions/{sid} {
+      allow read, write: if true;
+    }
+
+    // Allow access to activities collection (for admin logging)
+    match /activities/{document} {
+      allow read, write: if true;
+    }
+
+    // Allow access to user_activities collection (for user activity logging)
+    match /user_activities/{document} {
+      allow read, write: if true;
+    }
+
+    // อนุญาตทุกอย่างใต้ users/YZUhXqGmf1U24zmdxYvV (รวม /submissions และ /logs)
+    match /users/YZUhXqGmf1U24zmdxYvV/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

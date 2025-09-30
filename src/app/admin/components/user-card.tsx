@@ -10,9 +10,15 @@ import {
     Typography,
     Button,
     Avatar,
+    IconButton,
+    Tooltip,
+    Grid,
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import { User, getRoleLabel, getRoleColor } from "./user-types";
 
 interface UserCardProps {
@@ -23,77 +29,121 @@ interface UserCardProps {
 
 export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
     return (
-        <Card
-            variant="outlined"
-            sx={{
-                borderRadius: 3,
-                "&:hover": { boxShadow: 4, transform: "translateY(-1px)" },
-                transition: "all .2s",
-            }}
-        >
-            <CardContent>
-                <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar
-                            sx={(theme) => ({
-                                bgcolor: theme.palette.primary.main,
-                                width: 48,
-                                height: 48,
-                            })}
-                        >
-                            {user.name.charAt(0)}
-                        </Avatar>
-                        <Box flex={1}>
-                            <Typography variant="subtitle1" fontWeight={700}>
+        <Grid item xs={12} sm={6} md={4}>
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 3,
+                    transition: "all 0.3s ease-in-out",
+                    "&:hover": {
+                        boxShadow: (theme) => `0 8px 32px ${theme.palette.primary.main}15`,
+                        transform: "translateY(-4px)",
+                        borderColor: "primary.main",
+                    },
+                }}
+            >
+                <CardContent sx={{ p: 3 }}>
+                    {/* Header */}
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                                variant="h6"
+                                fontWeight={600}
+                                sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
                                 {user.name}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {user.email}
+                                ID: {user.id}
                             </Typography>
                         </Box>
-                    </Stack>
-                    
-                    <Stack spacing={1}>
-                        <Typography variant="body2" color="text.secondary">
-                            📞 {user.phone || "ไม่ระบุ"}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            🏢 {user.faculty} - {user.department}
-                        </Typography>
-                    </Stack>
-
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                         <Chip
-                            size="small"
                             label={getRoleLabel(user.role)}
-                            color={getRoleColor(user.role)}
+                            color={getRoleColor(user.role) as any}
+                            size="small"
                             variant="outlined"
                         />
                     </Stack>
 
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<EditRoundedIcon />}
-                            onClick={() => onEdit(user)}
-                            sx={{ borderRadius: 2 }}
-                        >
-                            แก้ไข
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            color="error"
-                            startIcon={<DeleteRoundedIcon />}
-                            onClick={() => onDelete(user.id)}
-                            sx={{ borderRadius: 2 }}
-                        >
-                            ลบ
-                        </Button>
+                    {/* User Info */}
+                    <Stack spacing={1.5} mb={3}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <EmailOutlinedIcon fontSize="small" color="action" />
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                {user.email}
+                            </Typography>
+                        </Box>
+
+                        {user.phone && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <PhoneOutlinedIcon fontSize="small" color="action" />
+                                <Typography variant="body2">{user.phone}</Typography>
+                            </Box>
+                        )}
+
+                        {user.faculty && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <BusinessOutlinedIcon fontSize="small" color="action" />
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {user.faculty} - {user.department}
+                                </Typography>
+                            </Box>
+                        )}
                     </Stack>
-                </Stack>
-            </CardContent>
-        </Card>
+
+                    {/* Actions */}
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Tooltip title="แก้ไข">
+                            <IconButton
+                                size="small"
+                                onClick={() => onEdit(user)}
+                                sx={{
+                                    color: "warning.main",
+                                    "&:hover": {
+                                        backgroundColor: "warning.light",
+                                        color: "warning.contrastText",
+                                    },
+                                }}
+                            >
+                                <EditRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="ลบ">
+                            <IconButton
+                                size="small"
+                                onClick={() => onDelete(user.id)}
+                                sx={{
+                                    color: "error.main",
+                                    "&:hover": {
+                                        backgroundColor: "error.light",
+                                        color: "error.contrastText",
+                                    },
+                                }}
+                            >
+                                <DeleteRoundedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                </CardContent>
+            </Card>
+        </Grid>
     );
 }

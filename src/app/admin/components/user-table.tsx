@@ -14,6 +14,7 @@ import {
     Typography,
     IconButton,
     Avatar,
+    Tooltip,
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
@@ -36,7 +37,7 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                             <TableCell sx={{ fontWeight: 700, width: 250 }}>อีเมล</TableCell>
                             <TableCell sx={{ fontWeight: 700, width: 120 }}>บทบาท</TableCell>
                             <TableCell sx={{ fontWeight: 700, width: 200 }}>คณะ/แผนก</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 140 }}>จัดการ</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 120 }}>จัดการ</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -57,33 +58,49 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                                 </TableCell>
                                 <TableCell>
                                     <Chip
-                                        size="small"
                                         label={getRoleLabel(user.role)}
-                                        color={getRoleColor(user.role)}
+                                        color={getRoleColor(user.role) as any}
+                                        size="small"
                                         variant="outlined"
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2" color="text.secondary" noWrap>
-                                        {user.faculty} - {user.department}
+                                    <Typography variant="body2" color="text.secondary">
+                                        {user.faculty || "-"} / {user.department || "-"}
                                     </Typography>
                                 </TableCell>
                                 <TableCell>
                                     <Stack direction="row" spacing={0.5}>
-                                        <IconButton
-                                            size="small"
-                                            color="primary"
-                                            onClick={() => onEdit(user)}
-                                        >
-                                            <EditRoundedIcon fontSize="small" />
-                                        </IconButton>
-                                        <IconButton
-                                            size="small"
-                                            color="error"
-                                            onClick={() => onDelete(user.id)}
-                                        >
-                                            <DeleteRoundedIcon fontSize="small" />
-                                        </IconButton>
+                                        <Tooltip title="แก้ไข">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => onEdit(user)}
+                                                sx={{
+                                                    color: "warning.main",
+                                                    "&:hover": {
+                                                        backgroundColor: "warning.light",
+                                                        color: "warning.contrastText",
+                                                    },
+                                                }}
+                                            >
+                                                <EditRoundedIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="ลบ">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => onDelete(user.id)}
+                                                sx={{
+                                                    color: "error.main",
+                                                    "&:hover": {
+                                                        backgroundColor: "error.light",
+                                                        color: "error.contrastText",
+                                                    },
+                                                }}
+                                            >
+                                                <DeleteRoundedIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
                                     </Stack>
                                 </TableCell>
                             </TableRow>

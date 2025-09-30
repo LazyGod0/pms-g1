@@ -33,8 +33,8 @@ export default function UserFormDialog({
         name: "",
         email: "",
         role: "staff" as UserRole,
-        faculty: "",
-        department: "",
+        faculty: "วิทยาศาสตร์",
+        department: "วิทยาการคอมพิวเตอร์",
         phone: "",
         password: "",
     });
@@ -42,20 +42,21 @@ export default function UserFormDialog({
     useEffect(() => {
         if (user) {
             setFormData({
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                faculty: user.faculty || "",
-                department: user.department || "",
+                name: user.name || "",
+                email: user.email || "",
+                role: user.role || "staff",
+                faculty: user.faculty || "วิทยาศาสตร์",
+                department: user.department || "วิทยาการคอมพิวเตอร์",
                 phone: user.phone || "",
+                password: "", // Always empty string for existing users
             });
         } else {
             setFormData({
                 name: "",
                 email: "",
                 role: "staff" as UserRole,
-                faculty: "",
-                department: "",
+                faculty: "วิทยาศาสตร์",
+                department: "วิทยาการคอมพิวเตอร์",
                 phone: "",
                 password: "",
             });
@@ -78,7 +79,7 @@ export default function UserFormDialog({
                         <TextField
                             fullWidth
                             label="ชื่อ-สกุล"
-                            value={formData.name}
+                            value={formData.name || ""}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
                         />
@@ -86,7 +87,7 @@ export default function UserFormDialog({
                             fullWidth
                             label="อีเมล"
                             type="email"
-                            value={formData.email}
+                            value={formData.email || ""}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                         />
@@ -95,7 +96,7 @@ export default function UserFormDialog({
                                 fullWidth
                                 label="รหัสผ่าน"
                                 type="password"
-                                value={formData.password}
+                                value={formData.password || ""}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 required
                             />
@@ -103,7 +104,7 @@ export default function UserFormDialog({
                         <FormControl fullWidth>
                             <InputLabel>บทบาท</InputLabel>
                             <Select
-                                value={formData.role}
+                                value={formData.role || "staff"}
                                 label="บทบาท"
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                             >
@@ -115,19 +116,25 @@ export default function UserFormDialog({
                         <TextField
                             fullWidth
                             label="คณะ"
-                            value={formData.faculty}
+                            value={formData.faculty || ""}
                             onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
+                            InputProps={{
+                                readOnly: true,
+                            }}
                         />
                         <TextField
                             fullWidth
                             label="แผนก/ภาควิชา"
-                            value={formData.department}
+                            value={formData.department || ""}
                             onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                            InputProps={{
+                                readOnly: true,
+                            }}
                         />
                         <TextField
                             fullWidth
                             label="เบอร์โทรศัพท์"
-                            value={formData.phone}
+                            value={formData.phone || ""}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         />
                     </Stack>

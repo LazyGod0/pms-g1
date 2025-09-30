@@ -26,9 +26,12 @@ import {
     searchUsers 
 } from "./user-types";
 import { useAdmin } from "../context/AdminContext";
+import { useAuth } from "@/contexts";
+import { logUserActivity } from "@/libs/activity-logger";
 
 const ManageUsersComponent: React.FC = () => {
     const { users, loading, addActivity } = useAdmin();
+    const { user: currentUser } = useAuth();
     const [filters, setFilters] = useState<SearchFiltersType>({
         keyword: "",
         role: "",
@@ -61,7 +64,11 @@ const ManageUsersComponent: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(userData),
+                body: JSON.stringify({
+                    ...userData,
+                    faculty: userData.faculty || "วิทยาศาสตร์",
+                    department: userData.department || "วิทยาการคอมพิวเตอร์"
+                }),
             });
 
             if (!response.ok) {
@@ -80,14 +87,31 @@ const ManageUsersComponent: React.FC = () => {
             const data = await response.json();
             console.log('User created successfully:', data.user);
             
-            // Log activity
-            await addActivity({
-                userId: "admin",
-                userName: "ผู้ดูแลระบบ",
+            // Enhanced activity logging for user creation
+            await logUserActivity({
+                userId: currentUser?.uid || "admin",
+                userEmail: currentUser?.email || "admin@system.com",
+                userName: currentUser?.displayName || currentUser?.email || "ผู้ดูแลระบบ",
+                userRole: (currentUser as any)?.role || "admin",
                 action: "create",
                 actionText: "เพิ่มผู้ใช้ใหม่",
-                targetName: userData.name,
+                category: "user_management",
+                method: "web",
+                targetType: "user",
                 targetId: data.user.id,
+                targetName: userData.name,
+                severity: "medium",
+                details: `เพิ่มผู้ใช้ใหม่ ${userData.name} (${userData.email}) ในบทบาท ${userData.role} คณะ${userData.faculty || "วิทยาศาสตร์"} ภาค${userData.department || "วิทยาการคอมพิวเตอร์"}`,
+                metadata: {
+                    newUserData: {
+                        email: userData.email,
+                        role: userData.role,
+                        faculty: userData.faculty || "วิทยาศาสตร์",
+                        department: userData.department || "วิทยาการคอมพิวเตอร์",
+                        phone: userData.phone
+                    },
+                    createdVia: "admin_dashboard"
+                }
             });
             
             return data.user;
@@ -99,6 +123,9 @@ const ManageUsersComponent: React.FC = () => {
 
     const updateUser = async (id: string, userData: Partial<UserFormData>) => {
         try {
+            // Get original user data for change tracking
+            const originalUser = users.find(u => u.id === id);
+
             const response = await fetch(`/api/admin/${id}`, {
                 method: 'PUT',
                 headers: {
@@ -114,14 +141,52 @@ const ManageUsersComponent: React.FC = () => {
 
             const data = await response.json();
             
-            // Log activity
-            await addActivity({
-                userId: "admin",
-                userName: "ผู้ดูแลระบบ",
+            // Track what fields were changed - filter out undefined values
+            const changes: Array<{field: string, oldValue: any, newValue: any}> = [];
+            if (originalUser) {
+                Object.keys(userData).forEach(key => {
+                    const oldValue = (originalUser as any)[key];
+                    const newValue = (userData as any)[key];
+                    // Only track changes where both values are defined and different
+                    if (oldValue !== newValue && newValue !== undefined && newValue !== null) {
+                        changes.push({
+                            field: key,
+                            oldValue: oldValue || "", // Ensure no undefined values
+                            newValue: newValue
+                        });
+                    }
+                });
+            }
+
+            // Enhanced activity logging for user update - ensure no undefined values
+            await logUserActivity({
+                userId: currentUser?.uid || "admin",
+                userEmail: currentUser?.email || "admin@system.com",
+                userName: currentUser?.displayName || currentUser?.email || "ผู้ดูแลระบบ",
+                userRole: (currentUser as any)?.role || "admin",
                 action: "edit",
-                actionText: "แก้ไขข้อมูล",
-                targetName: userData.name || "ผู้ใช้",
+                actionText: "แก้ไขข้อมูลผู้ใช้",
+                category: "user_management",
+                method: "web",
+                targetType: "user",
                 targetId: id,
+                targetName: userData.name || originalUser?.name || "ผู้ใช้",
+                severity: "medium",
+                details: `แก้ไขข้อมูลผู้ใช้ ${userData.name || originalUser?.name || "ผู้ใช้"} - เปลี่ยนแปลง ${changes.length} ฟิลด์`,
+                // Only include changes if there are any valid changes
+                ...(changes.length > 0 && { changes: changes }),
+                metadata: {
+                    updatedFields: Object.keys(userData).filter(key => (userData as any)[key] !== undefined),
+                    // Only include originalUser data if it exists and has valid values
+                    ...(originalUser && {
+                        originalUser: {
+                            name: originalUser.name || "ไม่ระบุ",
+                            email: originalUser.email || "ไม่ระบุ",
+                            role: originalUser.role || "user"
+                        }
+                    }),
+                    updatedVia: "admin_dashboard"
+                }
             });
             
             return data.user;
@@ -133,6 +198,8 @@ const ManageUsersComponent: React.FC = () => {
 
     const deleteUser = async (id: string, userName: string) => {
         try {
+            const userToDelete = users.find(u => u.id === id);
+
             const response = await fetch(`/api/admin/${id}`, {
                 method: 'DELETE',
                 headers: {
@@ -145,14 +212,35 @@ const ManageUsersComponent: React.FC = () => {
                 throw new Error(errorData.message || 'Failed to delete user');
             }
 
-            // Log activity
-            await addActivity({
-                userId: "admin",
-                userName: "ผู้ดูแลระบบ",
+            // Enhanced activity logging for user deletion - ensure no undefined values
+            await logUserActivity({
+                userId: currentUser?.uid || "admin",
+                userEmail: currentUser?.email || "admin@system.com",
+                userName: currentUser?.displayName || currentUser?.email || "ผู้ดูแลระบบ",
+                userRole: (currentUser as any)?.role || "admin",
                 action: "delete",
                 actionText: "ลบผู้ใช้",
-                targetName: userName,
+                category: "user_management",
+                method: "web",
+                targetType: "user",
                 targetId: id,
+                targetName: userName,
+                severity: "high",
+                details: `ลบผู้ใช้ ${userName} (${userToDelete?.email || 'ไม่ทราบอีเมล'}) ออกจากระบบ`,
+                metadata: {
+                    // Only include deletedUser data if it exists and has valid values
+                    ...(userToDelete && {
+                        deletedUser: {
+                            name: userToDelete.name || "ไม่ระบุ",
+                            email: userToDelete.email || "ไม่ระบุ",
+                            role: userToDelete.role || "user",
+                            faculty: userToDelete.faculty || "ไม่ระบุ",
+                            department: userToDelete.department || "ไม่ระบุ"
+                        }
+                    }),
+                    deletedVia: "admin_dashboard",
+                    confirmationRequired: true
+                }
             });
             
         } catch (error) {
@@ -363,6 +451,8 @@ const ManageUsersComponent: React.FC = () => {
                 onConfirm={handleDeleteConfirm}
                 userName={deletingUser?.name || ""}
             />
+
+            {/* เอา UserActivityLogs dialog ออก */}
 
             {/* Snackbar */}
             <Snackbar

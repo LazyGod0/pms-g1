@@ -5,6 +5,7 @@ export type UserRole = "admin" | "lecturer" | "staff";
 
 export type User = {
     id: string;          // Firestore document ID
+    uid?: string;        // Firebase Auth UID (เพิ่มใหม่)
     name: string;
     email: string;
     role: UserRole;

@@ -1,12 +1,13 @@
 // app/signin/page.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/configs/firebase-config";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useNotifications, useAuth } from "@/contexts";
+import { useAuth } from "@/contexts";
 import Link from "next/link";
+import { logUserActivity, getUserAgent, getClientIP } from "@/libs/activity-logger";
 
 import {
     Box,
@@ -77,20 +78,34 @@ export default function SignInPage() {
     const searchParams = useSearchParams();
     const redirect = useMemo(() => searchParams.get("redirect") || "/", [searchParams]);
 
-    // ใช้ Context hooks
-    const { showSuccess, showError } = useNotifications();
-    const { loading: authLoading } = useAuth();
+    // ใช้ Context hooks - ต้องเรียกที่ top level
+    const { user: authUser, loading: authLoading, isAuthenticated } = useAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPwd, setShowPwd] = useState(false);
-    const [remember, setRemember] = useState(true);
+    const [remember, setRemember] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    // โหลดข้อมูลที่จำไว้เมื่อ component mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedRemember = localStorage.getItem('rememberMe') === 'true';
+            const savedEmail = localStorage.getItem('rememberedEmail');
+
+            if (savedRemember && savedEmail) {
+                setRemember(true);
+                setEmail(savedEmail);
+            }
+        }
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setSuccessMessage(null);
         setLoading(true);
 
         // ตรวจสอบข้อมูลก่อนส่ง
@@ -100,7 +115,6 @@ export default function SignInPage() {
         if (!trimmedEmail || !trimmedPassword) {
             const errorMessage = "กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน";
             setError(errorMessage);
-            showError("ข้อมูลไม่ครบถ้วน", errorMessage);
             setLoading(false);
             return;
         }
@@ -110,7 +124,6 @@ export default function SignInPage() {
         if (!emailRegex.test(trimmedEmail)) {
             const errorMessage = "รูปแบบอีเมลไม่ถูกต้อง";
             setError(errorMessage);
-            showError("อีเมลไม่ถูกต้อง", errorMessage);
             setLoading(false);
             return;
         }
@@ -121,22 +134,59 @@ export default function SignInPage() {
             const result = await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
             console.log("Login successful:", result.user);
 
-            // แสดงการแจ้งเตือนสำเร็จ
-            showSuccess(
-                "เข้าสู่ระบบสำเร็จ",
-                `ยินดีต้อนรับ ${result.user.email || "ผู้ใช้งาน"}`
-            );
+            // จัดการ "จดจำฉันไว้"
+            if (remember) {
+                localStorage.setItem('rememberMe', 'true');
+                localStorage.setItem('rememberedEmail', trimmedEmail);
+            } else {
+                localStorage.removeItem('rememberMe');
+                localStorage.removeItem('rememberedEmail');
+            }
 
-            // รอสักครู่ก่อนเปลี่ยนหน้า
-            setTimeout(() => {
-                router.push(redirect);
+            // บันทึกประวัติการเข้าใช้งานระบบ
+            // รอสักครู่ให้ AuthContext ประมวลผล role ก่อน
+            setTimeout(async () => {
+                try {
+                    await logUserActivity({
+                        userId: result.user.uid,
+                        userEmail: result.user.email || trimmedEmail,
+                        userName: result.user.displayName || result.user.email || "ผู้ใช้",
+                        userRole: "user", // จะถูกอัพเดทจาก AuthContext หลังจากนี้
+                        action: "login",
+                        actionText: "เข้าสู่ระบบ",
+                        category: "auth",
+                        method: "web",
+                        targetType: "system",
+                        targetName: "ระบบจัดการผลงานตีพิมพ์",
+                        severity: "low",
+                        details: `เข้าสู่ระบบผ่านเว็บไซต์ - Browser: ${navigator.userAgent.split(' ')[0]}`,
+                        metadata: {
+                            loginMethod: "email_password",
+                            rememberMe: remember,
+                            redirectTo: redirect !== "/" ? redirect : null,
+                            browserLanguage: navigator.language,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            firebaseUid: result.user.uid,
+                            actualEmail: result.user.email
+                        }
+                    });
+                    console.log("Login activity logged successfully");
+                } catch (logError) {
+                    console.error("Failed to log login activity:", logError);
+                }
             }, 1000);
+
+            // แสดงการแจ้งเตือนสำเร็จ
+            setSuccessMessage(`ยินดีต้อนรับ ${result.user.email || "ผู้ใช้งาน"} - กำลังตรวจสอบสิทธิ์...`);
+
+            // รอให้ AuthContext อัพเดท user พร้อม role แล้วค่อย redirect
+            // ไม่ต้อง redirect ที่นี่ ให้ useEffect ด้านล่างจัดการ
 
         } catch (err: any) {
             console.error("Login failed:", err);
             const errorMessage = mapFirebaseErrorToThai(err);
             setError(errorMessage);
-            showError("เข้าสู่ระบบไม่สำเร็จ", errorMessage);
         } finally {
             setLoading(false);
         }
@@ -146,13 +196,37 @@ export default function SignInPage() {
         router.back();
     };
 
+    // useEffect เพื่อ redirect เมื่อ user และ role พร้อม
+    useEffect(() => {
+        if (!authLoading && isAuthenticated && authUser?.role && successMessage) {
+            console.log("User authenticated with role:", authUser.role);
+
+            let redirectPath: string;
+
+            if (authUser.role === "admin") {
+                redirectPath = "/admin";
+            } else if (authUser.role === "editor") {
+                redirectPath = "/dashboard";
+            } else {
+                // ใช้ redirect parameter หรือ default เป็น dashboard
+                redirectPath = redirect !== "/" ? redirect : "/dashboard";
+            }
+
+            console.log("Redirecting to:", redirectPath);
+
+            setTimeout(() => {
+                router.push(redirectPath);
+            }, 1500);
+        }
+    }, [authUser, authLoading, isAuthenticated, successMessage, redirect, router]);
+
     return (
         <Box
             sx={(t) => ({
                 minHeight: "100vh",
                 display: "flex",
                 alignItems: "center",
-                py: 6,
+                py: 4, // ลดจาก 6
                 position: "relative",
                 background: `linear-gradient(135deg, ${t.palette.primary.main}15 0%, ${t.palette.secondary.main}08 50%, transparent 100%)`,
                 "&::before": {
@@ -170,12 +244,12 @@ export default function SignInPage() {
             {/* Back Button */}
             <Fab
                 color="primary"
-                size="medium"
+                size="small" // ลดจาก medium
                 onClick={handleGoBack}
                 sx={{
                     position: "fixed",
-                    top: 24,
-                    left: 24,
+                    top: 20, // ลดจาก 24
+                    left: 20, // ลดจาก 24
                     zIndex: 1000,
                     boxShadow: 3,
                     "&:hover": {
@@ -191,21 +265,21 @@ export default function SignInPage() {
 
             <Container maxWidth="sm" sx={{ position: "relative", zIndex: 1 }}>
                 {/* Header Section */}
-                <Box sx={{ textAlign: "center", mb: 4 }}>
+                <Box sx={{ textAlign: "center", mb: 3 }}> {/* ลดจาก mb: 4 */}
                     <Avatar
                         sx={(t) => ({
-                            width: 80,
-                            height: 80,
+                            width: 64, // ลดจาก 80
+                            height: 64, // ลดจาก 80
                             mx: "auto",
-                            mb: 2,
+                            mb: 1.5, // ลดจาก 2
                             bgcolor: t.palette.primary.main,
                             boxShadow: 4,
                         })}
                     >
-                        <LoginIcon sx={{ fontSize: 40 }} />
+                        <LoginIcon sx={{ fontSize: 32 }} /> {/* ลดจาก 40 */}
                     </Avatar>
                     <Typography
-                        variant="h4"
+                        variant="h5" // ลดจาก h4
                         component="h1"
                         fontWeight={800}
                         gutterBottom
@@ -224,7 +298,7 @@ export default function SignInPage() {
                 <Card
                     variant="outlined"
                     sx={{
-                        maxWidth: 520,
+                        maxWidth: 480, // ลดจาก 520
                         mx: "auto",
                         borderRadius: 4,
                         boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
@@ -233,23 +307,23 @@ export default function SignInPage() {
                         border: "1px solid rgba(255,255,255,0.2)",
                     }}
                 >
-                    <CardContent sx={{ p: { xs: 4, md: 5 } }}>
+                    <CardContent sx={{ p: { xs: 3, md: 4 } }}> {/* ลดจาก { xs: 4, md: 5 } */}
                         {/* Login Icon and Title */}
-                        <Box sx={{ textAlign: "center", mb: 4 }}>
+                        <Box sx={{ textAlign: "center", mb: 3 }}> {/* ลดจาก mb: 4 */}
                             <Avatar
                                 sx={(t) => ({
-                                    width: 64,
-                                    height: 64,
+                                    width: 56, // ลดจาก 64
+                                    height: 56, // ลดจาก 64
                                     mx: "auto",
-                                    mb: 2,
+                                    mb: 1.5, // ลดจาก 2
                                     bgcolor: `${t.palette.primary.main}15`,
                                     border: `2px solid ${t.palette.primary.main}25`,
                                 })}
                             >
-                                <PersonIcon sx={(t) => ({ fontSize: 32, color: t.palette.primary.main })} />
+                                <PersonIcon sx={(t) => ({ fontSize: 28, color: t.palette.primary.main })} /> {/* ลดจาก 32 */}
                             </Avatar>
                             <Typography
-                                variant="h5"
+                                variant="h6" // ลดจาก h5
                                 component="h2"
                                 align="center"
                                 fontWeight={700}
@@ -272,12 +346,25 @@ export default function SignInPage() {
                             <Alert
                                 severity="error"
                                 sx={{
-                                    mb: 3,
+                                    mb: 2.5, // ลดจาก 3
                                     borderRadius: 2,
                                     boxShadow: "0 2px 8px rgba(244, 67, 54, 0.15)"
                                 }}
                             >
                                 {error}
+                            </Alert>
+                        )}
+
+                        {successMessage && (
+                            <Alert
+                                severity="success"
+                                sx={{
+                                    mb: 2.5, // ลดจาก 3
+                                    borderRadius: 2,
+                                    boxShadow: "0 2px 8px rgba(76, 175, 80, 0.15)"
+                                }}
+                            >
+                                เข้าสู่ระบบสำเร็จ - {successMessage}
                             </Alert>
                         )}
 
@@ -415,11 +502,11 @@ export default function SignInPage() {
                                 disabled={loading}
                                 startIcon={loading ? undefined : <LoginIcon />}
                                 sx={{
-                                    mt: 3,
-                                    py: 1.8,
+                                    mt: 2.5, // ลดจาก 3
+                                    py: 1.5, // ลดจาก 1.8
                                     borderRadius: 3,
                                     fontWeight: 700,
-                                    fontSize: "1rem",
+                                    fontSize: "0.95rem", // ลดจาก 1rem
                                     textTransform: "none",
                                     background: (t) => `linear-gradient(45deg, ${t.palette.primary.main} 30%, ${t.palette.primary.dark} 90%)`,
                                     boxShadow: "0 4px 20px rgba(25, 118, 210, 0.4)",
@@ -440,40 +527,13 @@ export default function SignInPage() {
                             </Button>
                         </Box>
 
-                        <Divider sx={{ my: 4, opacity: 0.7 }} />
+                        <Divider sx={{ my: 3, opacity: 0.7 }} /> {/* ลดจาก my: 4 */}
 
-                        <Typography variant="body2" align="center" fontWeight={500}>
-                            หากคุณยังไม่มีบัญชี?{" "}
-                            <Link
-                                href="/register"
-                                style={{
-                                    textDecoration: "none",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                ลงทะเบียน
-                            </Link>
-                        </Typography>
+
                     </CardContent>
                 </Card>
 
-                {/* Footer info */}
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                    align="center"
-                    sx={{
-                        mt: 3,
-                        p: 2,
-                        borderRadius: 2,
-                        backgroundColor: "rgba(255,255,255,0.7)",
-                        backdropFilter: "blur(10px)",
-                        fontWeight: 500,
-                    }}
-                >
-                    หลังเข้าสู่ระบบแล้ว จะพาไปยัง: <b>{redirect}</b>
-                </Typography>
+
             </Container>
         </Box>
     );

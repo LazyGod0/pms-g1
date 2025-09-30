@@ -354,41 +354,41 @@ export default function PublicHomePage() {
                 },
             })}
         >
-        <Container maxWidth="lg" sx={{ py: 4, position: "relative", zIndex: 1 }}>
+        <Container maxWidth="lg" sx={{ py: 3, position: "relative", zIndex: 1 }}> {/* ลดจาก py: 4 */}
             {/* Header Section */}
-            <Box sx={{ textAlign: "center", mb: 6 }}>
+            <Box sx={{ textAlign: "center", mb: 4 }}> {/* ลดจาก mb: 6 */}
                 <Avatar
                     sx={(t) => ({
-                        width: 100,
-                        height: 100,
+                        width: 80, // ลดจาก 100
+                        height: 80, // ลดจาก 100
                         mx: "auto",
-                        mb: 3,
+                        mb: 2, // ลดจาก 3
                         background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
-                        boxShadow: 6,
+                        boxShadow: 4, // ลดจาก 6
                     })}
                 >
-                    <SchoolIcon sx={{ fontSize: 50 }} />
+                    <SchoolIcon sx={{ fontSize: 40 }} /> {/* ลดจาก 50 */}
                 </Avatar>
                 <Typography
-                    variant="h3"
+                    variant="h4" // ลดจาก h3
                     component="h1"
-                    fontWeight={800}
+                    fontWeight={700} // ลดจาก 800
                     gutterBottom
                     sx={(t) => ({
                         background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
                         backgroundClip: "text",
                         WebkitBackgroundClip: "text",
                         color: "transparent",
-                        textShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                        mb: 2,
+                        textShadow: "0 1px 4px rgba(0,0,0,0.1)", // ลด shadow
+                        mb: 1.5, // ลดจาก 2
                     })}
                 >
                     ระบบจัดการผลงานตีพิมพ์
                 </Typography>
                 <Typography
-                    variant="h6"
+                    variant="body1" // ลดจาก h6
                     color="text.secondary"
-                    sx={{ maxWidth: 800, mx: "auto", fontWeight: 500, lineHeight: 1.6 }}
+                    sx={{ maxWidth: 600, mx: "auto", fontWeight: 500, lineHeight: 1.5 }}
                 >
                     ค้นพบและสำรวจผลงานวิชาการจากมหาวิทยาลัยของเรา ค้นหาผ่านวารสาร บทความงานประชุม และผลงานวิจัยต่างๆ
                 </Typography>
@@ -398,22 +398,22 @@ export default function PublicHomePage() {
             <Card
                 variant="outlined"
                 sx={{
-                    borderRadius: 5,
+                    borderRadius: 4, // ลดจาก 5
                     background: "rgba(255,255,255,0.9)",
                     backdropFilter: "blur(10px)",
                     border: "1px solid rgba(255,255,255,0.2)",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-                    mb: 6,
+                    boxShadow: "0 6px 24px rgba(0,0,0,0.08)", // ลด shadow
+                    mb: 4, // ลดจาก 6
                 }}
             >
-                <CardContent sx={{ p: { xs: 3, md: 5 } }}>
-                    <Stack spacing={4} alignItems="center" textAlign="center">
+                <CardContent sx={{ p: { xs: 2.5, md: 4 } }}> {/* ลดจาก { xs: 3, md: 5 } */}
+                    <Stack spacing={3} alignItems="center" textAlign="center"> {/* ลดจาก spacing: 4 */}
                         {/* Main Title with Icon */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
-                            <MenuBookIcon sx={(t) => ({ fontSize: 40, color: t.palette.primary.main })} />
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", justifyContent: "center" }}> {/* ลดจาก gap: 2 */}
+                            <MenuBookIcon sx={(t) => ({ fontSize: 32, color: t.palette.primary.main })} /> {/* ลดจาก 40 */}
                             <Typography
-                                variant="h4"
-                                fontWeight={700}
+                                variant="h5" // ลดจาก h4
+                                fontWeight={600} // ลดจาก 700
                                 sx={{ color: "text.primary" }}
                             >
                                 Publication Management System
@@ -423,9 +423,9 @@ export default function PublicHomePage() {
                         <Typography
                             color="text.secondary"
                             sx={{
-                                maxWidth: 720,
-                                fontSize: "1.1rem",
-                                lineHeight: 1.7,
+                                maxWidth: 600, // ลดจาก 720
+                                fontSize: "1rem", // ลดจาก 1.1rem
+                                lineHeight: 1.6, // ลดจาก 1.7
                                 fontWeight: 400
                             }}
                         >
@@ -434,37 +434,37 @@ export default function PublicHomePage() {
                         </Typography>
 
                         {/* Enhanced Stats Grid */}
-                        <Grid container spacing={3} sx={{ mt: 2, maxWidth: 1000 }}>
+                        <Grid container spacing={2.5} sx={{ mt: 1.5, maxWidth: 900 }}> {/* ลด spacing และ maxWidth */}
                             <Grid item xs={6} md={3}>
                                 <Paper
                                     elevation={0}
                                     sx={(t) => ({
-                                        p: 3,
-                                        borderRadius: 4,
+                                        p: 2.5, // ลดจาก 3
+                                        borderRadius: 3, // ลดจาก 4
                                         background: `linear-gradient(135deg, ${t.palette.primary.main}15, ${t.palette.primary.light}08)`,
                                         border: `1px solid ${t.palette.primary.main}20`,
                                         transition: "all 0.3s ease-in-out",
                                         "&:hover": {
-                                            transform: "translateY(-4px)",
-                                            boxShadow: `0 8px 25px ${t.palette.primary.main}30`,
+                                            transform: "translateY(-2px)", // ลดจาก -4px
+                                            boxShadow: `0 6px 20px ${t.palette.primary.main}25`, // ลด shadow
                                         },
                                     })}
                                 >
-                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                    <Stack spacing={1} alignItems="center" textAlign="center"> {/* ลดจาก 1.5 */}
                                         <Avatar
                                             sx={(t) => ({
-                                                width: 50,
-                                                height: 50,
+                                                width: 42, // ลดจาก 50
+                                                height: 42, // ลดจาก 50
                                                 bgcolor: t.palette.primary.main,
-                                                boxShadow: 2,
+                                                boxShadow: 1, // ลดจาก 2
                                             })}
                                         >
-                                            <AutoStoriesOutlinedIcon sx={{ fontSize: 28 }} />
+                                            <AutoStoriesOutlinedIcon sx={{ fontSize: 24 }} /> {/* ลดจาก 28 */}
                                         </Avatar>
-                                        <Typography variant="h4" fontWeight={800} sx={{ color: "primary.main" }}>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "primary.main" }}> {/* ลดจาก h4, 800 */}
                                             {stats.total}
                                         </Typography>
-                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary"> {/* ลดจาก body1 */}
                                             ผลงานทั้งหมด
                                         </Typography>
                                     </Stack>
@@ -474,32 +474,32 @@ export default function PublicHomePage() {
                                 <Paper
                                     elevation={0}
                                     sx={(t) => ({
-                                        p: 3,
-                                        borderRadius: 4,
+                                        p: 2.5,
+                                        borderRadius: 3,
                                         background: `linear-gradient(135deg, ${t.palette.success.main}15, ${t.palette.success.light}08)`,
                                         border: `1px solid ${t.palette.success.main}20`,
                                         transition: "all 0.3s ease-in-out",
                                         "&:hover": {
-                                            transform: "translateY(-4px)",
-                                            boxShadow: `0 8px 25px ${t.palette.success.main}30`,
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.success.main}25`,
                                         },
                                     })}
                                 >
-                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
                                         <Avatar
                                             sx={(t) => ({
-                                                width: 50,
-                                                height: 50,
+                                                width: 42,
+                                                height: 42,
                                                 bgcolor: t.palette.success.main,
-                                                boxShadow: 2,
+                                                boxShadow: 1,
                                             })}
                                         >
-                                            <EmojiEventsOutlinedIcon sx={{ fontSize: 28 }} />
+                                            <EmojiEventsOutlinedIcon sx={{ fontSize: 24 }} />
                                         </Avatar>
-                                        <Typography variant="h4" fontWeight={800} sx={{ color: "success.main" }}>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "success.main" }}>
                                             {stats.international}
                                         </Typography>
-                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
                                             ระดับนานาชาติ
                                         </Typography>
                                     </Stack>
@@ -509,32 +509,32 @@ export default function PublicHomePage() {
                                 <Paper
                                     elevation={0}
                                     sx={(t) => ({
-                                        p: 3,
-                                        borderRadius: 4,
+                                        p: 2.5,
+                                        borderRadius: 3,
                                         background: `linear-gradient(135deg, ${t.palette.info.main}15, ${t.palette.info.light}08)`,
                                         border: `1px solid ${t.palette.info.main}20`,
                                         transition: "all 0.3s ease-in-out",
                                         "&:hover": {
-                                            transform: "translateY(-4px)",
-                                            boxShadow: `0 8px 25px ${t.palette.info.main}30`,
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.info.main}25`,
                                         },
                                     })}
                                 >
-                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
                                         <Avatar
                                             sx={(t) => ({
-                                                width: 50,
-                                                height: 50,
+                                                width: 42,
+                                                height: 42,
                                                 bgcolor: t.palette.info.main,
-                                                boxShadow: 2,
+                                                boxShadow: 1,
                                             })}
                                         >
-                                            <TrendingUpRoundedIcon sx={{ fontSize: 28 }} />
+                                            <TrendingUpRoundedIcon sx={{ fontSize: 24 }} />
                                         </Avatar>
-                                        <Typography variant="h4" fontWeight={800} sx={{ color: "info.main" }}>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "info.main" }}>
                                             {stats.journals}
                                         </Typography>
-                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
                                             วารสาร
                                         </Typography>
                                     </Stack>
@@ -544,32 +544,32 @@ export default function PublicHomePage() {
                                 <Paper
                                     elevation={0}
                                     sx={(t) => ({
-                                        p: 3,
-                                        borderRadius: 4,
+                                        p: 2.5,
+                                        borderRadius: 3,
                                         background: `linear-gradient(135deg, ${t.palette.secondary.main}15, ${t.palette.secondary.light}08)`,
                                         border: `1px solid ${t.palette.secondary.main}20`,
                                         transition: "all 0.3s ease-in-out",
                                         "&:hover": {
-                                            transform: "translateY(-4px)",
-                                            boxShadow: `0 8px 25px ${t.palette.secondary.main}30`,
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.secondary.main}25`,
                                         },
                                     })}
                                 >
-                                    <Stack spacing={1.5} alignItems="center" textAlign="center">
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
                                         <Avatar
                                             sx={(t) => ({
-                                                width: 50,
-                                                height: 50,
+                                                width: 42,
+                                                height: 42,
                                                 bgcolor: t.palette.secondary.main,
-                                                boxShadow: 2,
+                                                boxShadow: 1,
                                             })}
                                         >
-                                            <GroupOutlinedIcon sx={{ fontSize: 28 }} />
+                                            <GroupOutlinedIcon sx={{ fontSize: 24 }} />
                                         </Avatar>
-                                        <Typography variant="h4" fontWeight={800} sx={{ color: "secondary.main" }}>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "secondary.main" }}>
                                             {stats.conferences}
                                         </Typography>
-                                        <Typography variant="body1" fontWeight={600} color="text.secondary">
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
                                             งานประชุม
                                         </Typography>
                                     </Stack>
@@ -584,24 +584,25 @@ export default function PublicHomePage() {
                             startIcon={<LoginIcon />}
                             onClick={() => handleNavigate('/login')}
                             sx={{
-                                mt: 4,
-                                py: 2,
-                                px: 4,
-                                borderRadius: 4,
-                                fontSize: "1.1rem",
+                                mt: 3, // ลดจาก 4
+                                py: 1.5, // ลดจาก 2
+                                px: 3.5, // ลดจาก 4
+                                borderRadius: 3, // ลดจาก 4
+                                fontSize: "1rem", // ลดจาก 1.1rem
                                 fontWeight: 700,
                                 textTransform: "none",
                                 background: (t) => `linear-gradient(45deg, ${t.palette.primary.main} 30%, ${t.palette.primary.dark} 90%)`,
-                                boxShadow: "0 6px 20px rgba(25, 118, 210, 0.4)",
+                                boxShadow: "0 4px 16px rgba(25, 118, 210, 0.35)", // ลด shadow
                                 "&:hover": {
-                                    transform: "translateY(-3px)",
-                                    boxShadow: "0 8px 30px rgba(25, 118, 210, 0.6)",
+                                    transform: "translateY(-2px)", // ลดจาก -3px
+                                    boxShadow: "0 6px 24px rgba(25, 118, 210, 0.5)", // ลด shadow
                                     background: (t) => `linear-gradient(45deg, ${t.palette.primary.dark} 30%, ${t.palette.primary.main} 90%)`,
                                 },
                                 transition: "all 0.3s ease-in-out",
+
                             }}
                         >
-                            เข้าสู่ระบบจัดการผลงานตีพิมพ์
+                            เข้าสู่ระบบเพื่อจัดการผลงาน
                         </Button>
                     </Stack>
                 </CardContent>

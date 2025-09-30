@@ -55,7 +55,7 @@ function StatCard({
                     borderColor: theme.palette.primary.light,
                 },
                 "&::before": {
-                    content: '""""',
+                    content: '""',
                     position: "absolute",
                     top: 0,
                     right: 0,
@@ -120,7 +120,7 @@ function StatCard({
 }
 
 export default function Dashboard({ onAddUser }: DashboardProps) {
-    const { stats, loading } = useAdmin();
+    const { stats, loading, error, usingMockData } = useAdmin();
 
     const getPercentage = (value: number, total: number) => {
         return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
@@ -134,96 +134,171 @@ export default function Dashboard({ onAddUser }: DashboardProps) {
         );
     }
 
-    return (
-        <Card
-            variant="outlined"
-            sx={(theme) => ({
-                borderRadius: 4,
-                background: `linear-gradient(135deg, ${theme.palette.primary.light}15, ${theme.palette.secondary.light}08, transparent)`,
-                mb: 4,
-                overflow: "visible",
-                position: "relative",
-                "&::before": {
-                    content: '""""',
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main}08, transparent 60%)`,
+    if (error && !usingMockData) {
+        return (
+            <Card
+                variant="outlined"
+                sx={{
                     borderRadius: 4,
-                    zIndex: 0,
-                },
-            })}
-        >
-            <CardContent sx={{ position: "relative", zIndex: 1, p: 4 }}>
-                <Stack spacing={3} alignItems="center" textAlign="center">
-                    {/* Header Section */}
-                    <Box>
-                        <Typography
-                            variant="h3"
-                            fontWeight={900}
-                            sx={(theme) => ({
-                                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                                backgroundClip: "text",
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                                mb: 1,
-                            })}
-                        >
-                            จัดการผู้ใช้งาน
-                        </Typography>
-                        <Typography
-                            color="text.secondary"
-                            variant="h6"
-                            fontWeight={400}
-                            sx={{ maxWidth: 720, mx: "auto" }}
-                        >
-                            จัดการข้อมูลผู้ใช้งานในระบบ เพิ่ม แก้ไข และลบข้อมูลผู้ใช้ต่างๆ
-                        </Typography>
-                    </Box>
+                    mb: 4,
+                    borderColor: "error.main",
+                }}
+            >
+                <CardContent sx={{ p: 4, textAlign: "center" }}>
+                    <Typography variant="h6" color="error" gutterBottom>
+                        เกิดข้อผิดพลาด
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 3 }}>
+                        {error}
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => window.location.reload()}
+                    >
+                        รีเฟรชหน้า
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
 
-                    {/* Stats Cards */}
-                    <Grid container spacing={3} sx={{ mt: 2, maxWidth: 1000 }}>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <StatCard
-                                icon={<GroupRoundedIcon />}
-                                value={stats.total}
-                                label="ผู้ใช้ทั้งหมด"
-                                color="primary"
-                                trend={stats.total > 0 ? "+100%" : "เริ่มต้น"}
-                            />
+    return (
+        <>
+            {/* Show warning if using mock data */}
+            {usingMockData && (
+                <Card
+                    variant="outlined"
+                    sx={{
+                        borderRadius: 4,
+                        mb: 3,
+                        borderColor: "warning.main",
+                        backgroundColor: "warning.light",
+                    }}
+                >
+                    <CardContent sx={{ p: 3 }}>
+                        <Typography variant="body1" color="warning.dark" fontWeight={600}>
+                            ⚠️ กำลังใช้ข้อมูลตัวอย่าง
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {error}
+                        </Typography>
+                    </CardContent>
+                </Card>
+            )}
+
+            <Card
+                variant="outlined"
+                sx={(theme) => ({
+                    borderRadius: 4,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.light}15, ${theme.palette.secondary.light}08, transparent)`,
+                    mb: 4,
+                    overflow: "visible",
+                    position: "relative",
+                    "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}08, transparent 60%)`,
+                        borderRadius: 4,
+                        zIndex: 0,
+                    },
+                })}
+            >
+                <CardContent sx={{ position: "relative", zIndex: 1, p: 4 }}>
+                    <Stack spacing={3} alignItems="center" textAlign="center">
+                        {/* Header Section */}
+                        <Box>
+                            <Typography
+                                variant="h3"
+                                fontWeight={900}
+                                sx={(theme) => ({
+                                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                                    backgroundClip: "text",
+                                    WebkitBackgroundClip: "text",
+                                    WebkitTextFillColor: "transparent",
+                                    mb: 1,
+                                })}
+                            >
+                                จัดการผู้ใช้งาน
+                            </Typography>
+                            <Typography
+                                color="text.secondary"
+                                variant="h6"
+                                fontWeight={400}
+                                sx={{ maxWidth: 720, mx: "auto" }}
+                            >
+                                จัดการข้อมูลผู้ใช้งานในระบบ เพิ่ม แก้ไข และลบข้อมูลผู้ใช้ต่างๆ
+                            </Typography>
+                        </Box>
+
+                        {/* Stats Cards */}
+                        <Grid container spacing={3} sx={{ mt: 2, maxWidth: 1000 }}>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<GroupRoundedIcon />}
+                                    value={stats.total}
+                                    label="ผู้ใช้ทั้งหมด"
+                                    color="primary"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<SchoolRoundedIcon />}
+                                    value={stats.lecturers}
+                                    label="อาจารย์"
+                                    color="success"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<AdminPanelSettings />}
+                                    value={stats.admins}
+                                    label="ผู้ดูแลระบบ"
+                                    color="secondary"
+                                />
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <StatCard
+                                    icon={<WorkRoundedIcon />}
+                                    value={stats.staff}
+                                    label="เจ้าหน้าที่"
+                                    color="warning"
+                                />
+                            </Grid>
                         </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <StatCard
-                                icon={<SchoolRoundedIcon />}
-                                value={stats.lecturers}
-                                label="อาจารย์"
-                                color="warning"
-                                trend={getPercentage(stats.lecturers, stats.total)}
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <StatCard
-                                icon={<WorkRoundedIcon />}
-                                value={stats.staff}
-                                label="เจ้าหน้าที่"
-                                color="success"
-                                trend={getPercentage(stats.staff, stats.total)}
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 6, md: 3 }}>
-                            <StatCard
-                                icon={<AdminPanelSettings />}
-                                value={stats.admins}
-                                label="ผู้ดูแลระบบ"
-                                color="error"
-                                trend={getPercentage(stats.admins, stats.total)}
-                            />
-                        </Grid>
-                    </Grid>
-                </Stack>
-            </CardContent>
-        </Card>
+
+                        {/* Action Button */}
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={<PersonAddRoundedIcon />}
+                            onClick={onAddUser}
+                            sx={{
+                                mt: 3,
+                                py: 1.5,
+                                px: 4,
+                                borderRadius: 3,
+                                fontWeight: 700,
+                                textTransform: "none",
+                                background: (theme) =>
+                                    `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
+                                boxShadow: "0 4px 20px rgba(25, 118, 210, 0.4)",
+                                "&:hover": {
+                                    transform: "translateY(-2px)",
+                                    boxShadow: "0 6px 25px rgba(25, 118, 210, 0.5)",
+                                },
+                                transition: "all 0.3s ease-in-out",
+                            }}
+                        >
+                            เพิ่มผู้ใช้ใหม่
+                        </Button>
+                    </Stack>
+                </CardContent>
+            </Card>
+        </>
     );
 }
