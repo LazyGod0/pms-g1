@@ -15,6 +15,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import PublishIcon from '@mui/icons-material/Publish';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -447,6 +448,34 @@ function LecturerDashboardContent() {
                 }}
               >
                 เพิ่มผลงานใหม่
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                startIcon={<MenuBookIcon />}
+                component="a"
+                href="https://drive.google.com/drive/folders/1MT9qbUPRak0z53wyu-u3rPfSaNny9-sg?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  borderRadius: 4,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  borderColor: 'success.main',
+                  color: 'success.main',
+                  '&:hover': {
+                    backgroundColor: 'success.main',
+                    color: 'white',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 20px rgba(76, 175, 80, 0.3)',
+                  },
+                  transition: 'all 0.3s ease-in-out',
+                }}
+              >
+                คู่มือการใช้งาน
               </Button>
 
               <Button
