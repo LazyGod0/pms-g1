@@ -7,7 +7,7 @@ import { auth } from "@/configs/firebase-config";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts";
 import Link from "next/link";
-import { logUserActivity, getUserAgent, getClientIP } from "@/libs/activity-logger";
+import { logUserActivity } from "@/libs/activity-logger";
 
 import {
     Box,
@@ -34,11 +34,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LoginIcon from "@mui/icons-material/Login";
 import PersonIcon from "@mui/icons-material/Person";
 
-function mapFirebaseErrorToThai(error: any) {
+function mapFirebaseErrorToThai(error: unknown) {
     console.log("Firebase Error:", error); // เพิ่ม logging เพื่อ debug
 
-    const code = error?.code?.toLowerCase() || "";
-    const message = error?.message?.toLowerCase() || "";
+    const code = (error as any)?.code?.toLowerCase() || "";
+    const message = (error as any)?.message?.toLowerCase() || "";
 
     // ตรวจสอบ error code ที่เป็นไปได้
     if (code.includes("auth/invalid-email") || code.includes("invalid-email")) {
@@ -207,6 +207,8 @@ export default function SignInPage() {
                 redirectPath = "/admin";
             } else if (authUser.role === "editor") {
                 redirectPath = "/dashboard";
+            } else if (authUser.role === "lecturer") {
+                redirectPath = "/lec-dashboard";
             } else {
                 // ใช้ redirect parameter หรือ default เป็น dashboard
                 redirectPath = redirect !== "/" ? redirect : "/dashboard";

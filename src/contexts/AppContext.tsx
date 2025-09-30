@@ -7,7 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, where, getDocs, getFirestore } from "firebase/firestore";
 
 // Types
-export type UserRole = "admin" | "user" | "editor";
+export type UserRole = "admin" | "user" | "editor" | "lecturer";
 
 interface AuthUser extends User {
     role?: UserRole;

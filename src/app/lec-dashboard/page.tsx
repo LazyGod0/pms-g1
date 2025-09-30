@@ -12,9 +12,10 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
 import { useEffect, useState } from 'react';
 
-import { auth, db } from '@/configs/firebase-config';
+import { db } from '@/configs/firebase-config';
 import { collection, getDocs, orderBy, query, limit, Timestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/contexts';
 
 type Activity = {
   id: string;
@@ -46,7 +47,7 @@ const normalizeStatus = (s?: string) => {
 
 type TrendPoint = { year: number; value: number; max: number };
 
-function tsToDate(x?: any): Date | undefined {
+function tsToDate(x?: Timestamp | Date | string | null): Date | undefined {
   if (!x) return undefined;
   if (x instanceof Timestamp) return x.toDate();
   if (x instanceof Date) return x;
@@ -202,7 +203,8 @@ function TrendRow({ year, value, max }: { year: number; value: number; max: numb
   );
 }
 
-export default function DashboardPage() {
+function LecturerDashboardContent() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState(0);
   const [submitted, setSubmitted] = useState(0);
@@ -210,14 +212,15 @@ export default function DashboardPage() {
   const [rejected, setRejected] = useState(0);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
-  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async () => {
+    const fetchData = async () => {
+      if (!user?.uid) return;
+
       try {
         setLoading(true);
-        const FIXED_UID = 'YZUhXqGmf1U24zmdxYvV';
-        const subCol = collection(db, 'users', FIXED_UID, 'submissions');
+        // ใช้ UID ของ user ที่ login อยู่แทน fixed UID
+        const subCol = collection(db, 'users', user.uid, 'submissions');
         const qRecent = query(subCol, orderBy('createdAt', 'desc'), limit(5));
         const snapRecent = await getDocs(qRecent);
         const snapAll = await getDocs(subCol);
@@ -286,14 +289,15 @@ export default function DashboardPage() {
         setRejected(cRejected);
         setTrend(trendArr);
 
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsub();
-  }, []);
-
+    fetchData();
+  }, [user?.uid]);
 
   return (
     <Box sx={{ py: 4, bgcolor: 'white', minHeight: '100vh' }}>
@@ -301,10 +305,10 @@ export default function DashboardPage() {
         <Stack direction="row" alignItems="start" justifyContent="space-between" sx={{ mb: 3 }}>
           <Box>
             <Typography variant="h5" fontWeight={800} color="black">
-              {`Welcome back${displayName ? `, ${displayName}` : ''}`}
+              {`Welcome back${user?.displayName ? `, ${user.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}`}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Faculty dashboard
+              Lecturer Dashboard
             </Typography>
           </Box>
 
@@ -355,6 +359,11 @@ export default function DashboardPage() {
                 {activities.length === 0 && !loading && (
                   <Typography sx={{ px: 2, py: 3 }} color="text.secondary">
                     No activity yet
+                  </Typography>
+                )}
+                {loading && (
+                  <Typography sx={{ px: 2, py: 3 }} color="text.secondary">
+                    Loading activities...
                   </Typography>
                 )}
                 {activities.map((a, idx) => (
@@ -423,5 +432,13 @@ export default function DashboardPage() {
         </Grid>
       </Container>
     </Box>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <ProtectedRoute requiredRole="lecturer" redirectTo="/login">
+      <LecturerDashboardContent />
+    </ProtectedRoute>
   );
 }

@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requiredRole?: "admin" | "editor" | "user";
+    requiredRole?: "admin" | "editor" | "user" | "lecturer";
     redirectTo?: string;
 }
 
@@ -43,6 +43,12 @@ function ProtectedRouteContent({
                 router.push(redirectTo);
                 return;
             }
+
+            if (requiredRole === "lecturer" && !["admin", "editor", "lecturer"].includes(user?.role || "")) {
+                setHasRedirected(true);
+                router.push(redirectTo);
+                return;
+            }
         }
     }, [loading, isAuthenticated, user, router, requiredRole, redirectTo, pathname, hasRedirected]);
 
@@ -68,7 +74,8 @@ function ProtectedRouteContent({
     // ถ้าไม่ได้รับอนุญาต
     if (!isAuthenticated ||
         (requiredRole === "admin" && user?.role !== "admin") ||
-        (requiredRole === "editor" && !["admin", "editor"].includes(user?.role || ""))) {
+        (requiredRole === "editor" && !["admin", "editor"].includes(user?.role || "")) ||
+        (requiredRole === "lecturer" && !["admin", "editor", "lecturer"].includes(user?.role || ""))) {
         return (
             <Box
                 sx={{
