@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts";
 import { SubmissionForm } from "@/types/submission";
 import { db } from "@/configs/firebase-config";
 import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
-import { getNextTempId } from "@/libs/firestore-utils";
+import { getNextTempId, checkDuplicatePublication } from "@/libs/firestore-utils";
 
 const steps = ["ข้อมูลพื้นฐาน", "ผู้แต่ง", "ตัวระบุ", "ไฟล์แนบ"];
 
@@ -56,6 +56,7 @@ function LecNewSubmitContent() {
   const [form, setForm] = React.useState<SubmissionForm>(initialForm);
   const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: "", sev: "success" });
   const [errors, setErrors] = React.useState<{ basics?: BasicsErrors; authors?: AuthorsErrors }>({});
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false);
 
   // setters
   const setBasics = (next: SubmissionForm["basics"]) => setForm((p) => ({ ...p, basics: next }));
@@ -112,6 +113,54 @@ function LecNewSubmitContent() {
         return;
       }
 
+      // ตรวจสอบการซ้ำซ้อนหากมีข้อมูลชื่อเรื่องและปี
+      if (form.basics.title?.trim() && form.basics.year?.trim()) {
+        setIsCheckingDuplicate(true);
+        setSnack({ open: true, msg: "กำลังตรวจสอบการซ้ำซ้อนของผลงาน...", sev: "info" });
+
+        try {
+          const isDuplicate = await checkDuplicatePublication(
+            user.uid,
+            form.basics.title.trim(),
+            form.basics.year.trim()
+          );
+
+          setIsCheckingDuplicate(false);
+
+          if (isDuplicate) {
+            const errorMsg = `❌ ไม่สามารถบันทึกผลงานได้!
+
+ผลงานที่มีชื่อ: "${form.basics.title.trim()}" 
+ในปี: ${form.basics.year.trim()} 
+มีอยู่แล้วในระบบของคุณ
+
+กรุณาแก้ไขชื่อเรื่องหรือปีให้แตกต่างจากผลงานเดิม`;
+
+            console.error("🚫 DUPLICATE PUBLICATION BLOCKED (Draft):", {
+              title: form.basics.title.trim(),
+              year: form.basics.year.trim(),
+              uid: user.uid
+            });
+
+            setSnack({
+              open: true,
+              msg: errorMsg,
+              sev: "error"
+            });
+            return;
+          }
+        } catch (error) {
+          setIsCheckingDuplicate(false);
+          const msg = error instanceof Error ? error.message : String(error);
+          setSnack({
+            open: true,
+            msg: `เกิดข้อผิดพลาดในการตรวจสอบการซ้ำซ้อน: ${msg}`,
+            sev: "error"
+          });
+          return;
+        }
+      }
+
       const newId = await getNextTempId(user.uid);
       const colRef = collection(db, "users", user.uid, "submissions");
       const docRef = doc(colRef, newId);
@@ -125,6 +174,7 @@ function LecNewSubmitContent() {
 
       setSnack({ open: true, msg: `Draft ถูกบันทึกเป็น ${newId}`, sev: "success" });
     } catch (e: unknown) {
+      setIsCheckingDuplicate(false);
       const msg = e instanceof Error ? e.message : String(e);
       setSnack({ open: true, msg: msg || "Save draft ล้มเหลว", sev: "error" });
     }
@@ -145,26 +195,92 @@ function LecNewSubmitContent() {
         return;
       }
 
-      const newId = await getNextTempId(user.uid);
-      const colRef = collection(db, "users", user.uid, "submissions");
-      const docRef = doc(colRef, newId);
+      // ตรวจสอบข้อมูลที่จำเป็นสำหรับการตรวจสอบการซ้ำซ้อน
+      if (!form.basics.title?.trim() || !form.basics.year?.trim()) {
+        setSnack({ open: true, msg: "ต้องมีชื่อเรื่องและปีเพื่อตรวจสอบการซ้ำซ้อน", sev: "error" });
+        return;
+      }
 
-      await setDoc(docRef, {
-        ...form,
-        status: "submitted",
-        createdAt: serverTimestamp(),
-        submittedAt: serverTimestamp(),
+      // ตรวจสอบการซ้ำซ้อนของผลงานตีพิมพ์
+      setIsCheckingDuplicate(true);
+      setSnack({ open: true, msg: "กำลังตรวจสอบการซ้ำซ้อนของผลงาน...", sev: "info" });
+
+      console.log("🔍 Starting duplicate check with:", {
+        uid: user.uid,
+        title: form.basics.title.trim(),
+        year: form.basics.year.trim()
       });
 
-      setSnack({ open: true, msg: `ส่งสำเร็จเป็นเอกสาร ${newId}`, sev: "success" });
+      try {
+        const isDuplicate = await checkDuplicatePublication(
+          user.uid,
+          form.basics.title.trim(),
+          form.basics.year.trim()
+        );
 
-      // Navigate back to dashboard after successful submission
-      setTimeout(() => {
-        router.push('/lec-dashboard');
-      }, 2000);
+        setIsCheckingDuplicate(false);
+
+        if (isDuplicate) {
+          const errorMsg = `❌ ไม่สามารถส่งผลงานได้!
+
+ผลงานที่มีชื่อ: "${form.basics.title.trim()}" 
+ในปี: ${form.basics.year.trim()} 
+มีอยู่แล้วในระบบของคุณ
+
+กรุณาแก้ไขชื่อเรื่องหรือปีให้แตกต่างจากผลงานเดิม
+หรือตรวจสอบผลงานที่ส่งไปแล้วใน Dashboard`;
+
+          console.error("🚫 DUPLICATE PUBLICATION BLOCKED (Submit):", {
+            title: form.basics.title.trim(),
+            year: form.basics.year.trim(),
+            uid: user.uid
+          });
+
+          setSnack({
+            open: true,
+            msg: errorMsg,
+            sev: "error"
+          });
+          return;
+        }
+
+        console.log("✅ No duplicate found, proceeding with submission");
+
+        const newId = await getNextTempId(user.uid);
+        const colRef = collection(db, "users", user.uid, "submissions");
+        const docRef = doc(colRef, newId);
+
+        await setDoc(docRef, {
+          ...form,
+          status: "submitted",
+          createdAt: serverTimestamp(),
+          submittedAt: serverTimestamp(),
+        });
+
+        setSnack({ open: true, msg: `ส่งสำเร็จเป็นเอกสาร ${newId}`, sev: "success" });
+
+        // Navigate back to dashboard after successful submission
+        setTimeout(() => {
+          router.push('/lec-dashboard');
+        }, 2000);
+
+      } catch (duplicateError) {
+        setIsCheckingDuplicate(false);
+        const msg = duplicateError instanceof Error ? duplicateError.message : String(duplicateError);
+        console.error("❌ Duplicate check error:", duplicateError);
+        setSnack({
+          open: true,
+          msg: `เกิดข้อผิดพลาดในการตรวจสอบการซ้ำซ้อน: ${msg}`,
+          sev: "error"
+        });
+        return;
+      }
+
     } catch (e: unknown) {
+      setIsCheckingDuplicate(false);
       const msg = e instanceof Error ? e.message : String(e);
-      setSnack({ open: true, msg: msg || "Submit ล้มเหลว", sev: "error" });
+      console.error("Submit error:", e);
+      setSnack({ open: true, msg: `เกิดข้อผิดพลาด: ${msg}`, sev: "error" });
     }
   };
 
@@ -373,6 +489,7 @@ function LecNewSubmitContent() {
                       <Button
                         variant="contained"
                         onClick={handleSubmit}
+                        disabled={isCheckingDuplicate}
                         sx={{
                           borderRadius: 3,
                           px: 4,
@@ -387,7 +504,7 @@ function LecNewSubmitContent() {
                           transition: "all 0.3s ease-in-out",
                         }}
                       >
-                        ส่งผลงาน
+                        {isCheckingDuplicate ? "กำลังส่ง..." : "ส่งผลงาน"}
                       </Button>
                     )}
                   </Stack>
