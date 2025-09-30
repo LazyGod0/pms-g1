@@ -13,7 +13,7 @@ import { db } from '@/configs/firebase-config';
 export type ReportFilters = {
   yearFrom: number;
   yearTo: number;
-  faculty: string;  // "All Faculties" | "<faculty name>"
+  //faculty: string;  // "All Faculties" | "<faculty name>"
   type: string;     // "All" | "Journal" | "Conference" | ...
   level: string;    // "All" | "National" | "International" | ...
 };
@@ -29,7 +29,7 @@ export type Publication = {
   type: string | null;
   level: string | null;
 
-  faculty: string | null;
+  // faculty: string | null;
   department: string | null;
 
   status: 'Submitted' | 'Approved' | 'Rejected' | 'Unknown';
@@ -79,16 +79,16 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
   if (filters.level !== 'All') {
     constraints.push(where('basics.level', '==', filters.level));
   }
-  if (filters.faculty !== 'All Faculties') {
-    constraints.push(where('faculty', '==', filters.faculty));
-  }
+  // if (filters.faculty !== 'All Faculties') {
+  //   constraints.push(where('faculty', '==', filters.faculty));
+  // }
 
   // Order by year (may be string in some docs; we'll coerce later)
   constraints.push(orderBy('basics.year', 'desc'));
 
   const q = query(collectionGroup(db, 'submissions'), ...constraints);
   const snap = await getDocs(q);
-
+  console.log(snap)
   const rows: Publication[] = snap.docs.map((ds) => {
     // users/{uid}/submissions/{sid}
     const seg = ds.ref.path.split('/');
@@ -109,7 +109,7 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
       type: basics.type ?? null,
       level: basics.level ?? null,
 
-      faculty: d.faculty ?? null,
+      // faculty: d.faculty ?? null,
       department: d.department ?? null, // ← If department lives on the user doc, see note below.
 
       status: mapStatus(d.status),
@@ -120,15 +120,15 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
         : undefined,
     };
   });
-
+  console.log(rows)
   // Client-side year range filter (robust to mixed types)
   const filtered = rows.filter((r) => {
     const inYear = r.year !== null && r.year >= filters.yearFrom && r.year <= filters.yearTo;
-    const inFaculty =
-      filters.faculty === 'All Faculties' || (r.faculty ?? '') === filters.faculty;
+    // const inFaculty =
+    //   filters.faculty === 'All Faculties' || (r.faculty ?? '') === filters.faculty;
     const inType = filters.type === 'All' || (r.type ?? '') === filters.type;
     const inLevel = filters.level === 'All' || (r.level ?? '') === filters.level;
-    return inYear && inFaculty && inType && inLevel;
+    return inYear && inType && inLevel;
   });
 
   // Stable sort (desc year, then title)

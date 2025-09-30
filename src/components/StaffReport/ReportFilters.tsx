@@ -17,7 +17,7 @@ const FACULTIES = [
 export type FiltersState = {
   yearFrom: number;
   yearTo: number;
-  faculty: string;
+  // faculty: string;
   type: 'All' | 'Journal' | 'Conference';
   level: 'All' | 'National' | 'International';
 };
@@ -91,7 +91,7 @@ export function ReportFilters({
         </TextField>
 
         {/* Faculty */}
-        <TextField
+        {/* <TextField
           select
           fullWidth
           label="Faculty"
@@ -103,7 +103,7 @@ export function ReportFilters({
               {f}
             </MenuItem>
           ))}
-        </TextField>
+        </TextField> */}
 
         {/* Type */}
         <TextField

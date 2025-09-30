@@ -27,7 +27,7 @@ export function PublicationsTable({ rows }: { rows: Publication[] }) {
             <TableRow>
               <TableCell>Title</TableCell>
               <TableCell>Authors</TableCell>
-              <TableCell>Faculty</TableCell>
+              {/* <TableCell>Faculty</TableCell> */}
               <TableCell>Type</TableCell>
               <TableCell>Level</TableCell>
               <TableCell>Status</TableCell>
@@ -39,12 +39,12 @@ export function PublicationsTable({ rows }: { rows: Publication[] }) {
               <TableRow key={r.id} hover>
                 <TableCell sx={{ maxWidth: 320 }}>{r.title}</TableCell>
                 <TableCell sx={{ maxWidth: 260 }}>{r.authors.join(', ')}</TableCell>
-                <TableCell>
+                {/* <TableCell>
                   <Box sx={{ display:'flex', flexDirection:'column' }}>
                     <span>{r.faculty}</span>
                     <Typography variant="caption" color="text.secondary">{r.department}</Typography>
                   </Box>
-                </TableCell>
+                </TableCell> */}
                 <TableCell><Chip size="small" label={r.type} variant="outlined"/></TableCell>
                 <TableCell><Chip size="small" label={r.level} variant="outlined"/></TableCell>
                 <TableCell><Chip size="small" label={r.status} color={statusColor[r.status]} variant={r.status==='Draft'?'outlined':'filled'} /></TableCell>

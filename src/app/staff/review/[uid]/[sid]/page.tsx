@@ -107,7 +107,7 @@ export default function ReviewPublicationPage() {
         setPub({
           title: basics.title ?? d.title ?? 'Untitled',
           authorLine: d.author ?? basics.author,
-          faculty: d.faculty,
+          // faculty: d.faculty,
           submittedAt: fmt(d.submittedAt) ?? fmt(d.createdAt),
           basics: {
             title: basics.title,

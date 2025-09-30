@@ -15,9 +15,9 @@ import { exportCSV, exportPDF } from '@/components/StaffReport/export';
 
 export default function ReportPage() {
   const [filters, setFilters] = React.useState<FiltersState>({
-    yearFrom: 2020,
-    yearTo: 2024,
-    faculty: 'All Faculties',
+    yearFrom: new Date(Date.now()).getFullYear() - 5,
+    yearTo: new Date(Date.now()).getFullYear(),
+    // faculty: 'All Faculties',
     type: 'All',
     level: 'All',
   });
@@ -90,7 +90,7 @@ export default function ReportPage() {
           setFilters({
             yearFrom: 2020,
             yearTo: 2024,
-            faculty: 'All Faculties',
+            // faculty: 'All Faculties',
             type: 'All',
             level: 'All',
           })

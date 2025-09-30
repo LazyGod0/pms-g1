@@ -9,7 +9,8 @@ import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItem, 
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import AssessmentIcon from '@mui/icons-material/Assessment';
-
+import HistoryIcon from '@mui/icons-material/History';
+import GradingIcon from '@mui/icons-material/Grading';
 const drawerWidth = 240;
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -26,13 +27,13 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
         <ListItem disablePadding>
           <ListItemButton LinkComponent={Link} href="/staff/dashboard">
-            <ListItemIcon><AssessmentIcon /></ListItemIcon>
+            <ListItemIcon><HomeIcon /></ListItemIcon>
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>
           <ListItemButton LinkComponent={Link} href="/staff/review-queue">
-            <ListItemIcon><HomeIcon /></ListItemIcon>
+            <ListItemIcon><GradingIcon /></ListItemIcon>
             <ListItemText primary="Review Queue" />
           </ListItemButton>
         </ListItem>
@@ -40,7 +41,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <ListItem disablePadding>
           <ListItemButton LinkComponent={Link} href="/staff/audit-log">
             <ListItemIcon>
-              <AssessmentIcon /> {/* เปลี่ยนไอคอนตามความเหมาะสม */}
+              <HistoryIcon /> {/* เปลี่ยนไอคอนตามความเหมาะสม */}
             </ListItemIcon>
             <ListItemText primary="Audit Log" />
           </ListItemButton>
