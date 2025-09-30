@@ -231,8 +231,8 @@ function PublicationTable({
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {publications.map((p) => (
-                            <TableRow key={p.id} hover>
+                        {publications.map((p,pubIdx) => (
+                            <TableRow key={pubIdx} hover>
                                 <TableCell>{p.title}</TableCell>
                                 <TableCell>
                                     <Typography variant="body2" color="text.secondary" noWrap>

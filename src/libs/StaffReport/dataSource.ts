@@ -88,7 +88,7 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
 
   const q = query(collectionGroup(db, 'submissions'), ...constraints);
   const snap = await getDocs(q);
-  console.log(snap)
+
   const rows: Publication[] = snap.docs.map((ds) => {
     // users/{uid}/submissions/{sid}
     const seg = ds.ref.path.split('/');

@@ -35,8 +35,8 @@ export function PublicationsTable({ rows }: { rows: Publication[] }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((r)=> (
-              <TableRow key={r.id} hover>
+            {rows.map((r,rIdx)=> (
+              <TableRow key={rIdx} hover>
                 <TableCell sx={{ maxWidth: 320 }}>{r.title}</TableCell>
                 <TableCell sx={{ maxWidth: 260 }}>{r.authors.join(', ')}</TableCell>
                 {/* <TableCell>
