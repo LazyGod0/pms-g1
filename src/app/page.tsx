@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from 'next/dynamic';
 
 /* MUI */
 import {
@@ -547,9 +548,12 @@ function PublicationTable({
 /* -------------------------------------------------
    Main Page
 ------------------------------------------------- */
-export default function PublicHomePage() {
+function PublicHomePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    // Add mounted state to prevent hydration mismatch
+    const [mounted, setMounted] = useState(false);
 
     const initialKeyword = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
     const [filters, setFilters] = useState<PublicationSearchFilters>({
@@ -576,6 +580,11 @@ export default function PublicHomePage() {
         international: 0
     });
     const itemsPerPage = 12;
+
+    // Set mounted to true after component mounts
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Load publications
     const loadPublications = async (searchFilters: PublicationSearchFilters = filters, page: number = 1) => {
@@ -639,10 +648,21 @@ export default function PublicHomePage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Load initial data
+    // Load initial data only after component is mounted
     useEffect(() => {
-        loadPublications({ keyword: initialKeyword });
-    }, [initialKeyword]);
+        if (mounted) {
+            loadPublications({ keyword: initialKeyword });
+        }
+    }, [mounted, initialKeyword]);
+
+    // Don't render until component is mounted to prevent hydration mismatch
+    if (!mounted) {
+        return (
+            <Box sx={{ minHeight: "100vh", bgcolor: "grey.50", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
@@ -939,3 +959,13 @@ export default function PublicHomePage() {
         </Box>
     );
 }
+
+// Export as dynamic component to prevent SSR issues
+export default dynamic(() => Promise.resolve(PublicHomePage), {
+    ssr: false,
+    loading: () => (
+        <Box sx={{ minHeight: "100vh", bgcolor: "grey.50", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <CircularProgress />
+        </Box>
+    )
+});
