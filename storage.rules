@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Firebase Storage Rules สำหรับระบบจัดการผลงานตีพิมพ์
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // กฎสำหรับไฟล์ผลงานตีพิมพ์
+    match /publications/{userId}/{submissionId}/{fileName} {
+      // อนุญาตให้ผู้ใช้ที่ล็อกอินแล้วอ่าน, เขียน, ลบไฟล์ของตนเอง
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+
+      // จำกัดขนาดไฟล์สูงสุด 10MB
+      allow write: if request.resource.size < 10 * 1024 * 1024;
+
+      // จำกัดชนิดไฟล์ที่อนุญาต
+      allow write: if request.resource.contentType.matches(
+        'application/pdf|' +
+        'application/msword|' +
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document|' +
+        'application/zip|' +
+        'application/x-zip-compressed|' +
+        'image/jpeg|' +
+        'image/png|' +
+        'text/plain'
+      );
+    }
+
+    // กฎสำหรับ Admin - สามารถเข้าถึงไฟล์ของผู้ใช้ทุกคนได้ (อ่านอย่างเดียว)
+    match /publications/{userId}/{submissionId}/{fileName} {
+      allow read: if request.auth != null &&
+                     request.auth.token != null &&
+                     request.auth.token.role == 'admin';
+    }
+
+    // ปฏิเสธการเข้าถึงอื่นๆ ทั้งหมด
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

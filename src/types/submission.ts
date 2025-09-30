@@ -28,8 +28,17 @@ export type Identifiers = {
   references?: ReferenceItem[];
 };
 
+export type AttachedFile = {
+  name: string;                  // ชื่อไฟล์ต้นฉบับ
+  url: string;                   // Download URL จาก Firebase Storage
+  size: number;                  // ขนาดไฟล์ในไบต์
+  type: string;                  // MIME type
+  path: string;                  // path ใน Firebase Storage สำหรับการลบ
+  uploadedAt: string;            // วันที่อัปโหลด (ISO string)
+};
+
 export type Attachments = {
-  files: string[];               // เก็บชื่อไฟล์/URL
+  files: AttachedFile[];         // เก็บข้อมูลไฟล์ที่สมบูรณ์
 };
 
 export type SubmissionForm = {

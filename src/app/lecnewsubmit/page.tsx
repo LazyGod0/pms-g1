@@ -40,7 +40,7 @@ const initialForm: SubmissionForm = {
   basics: { title: "", type: "", level: "", year: "", abstract: "", keywords: [] },
   authors: [],
   identifiers: { doi: "", url: "", references: [] },
-  attachments: { files: [] },
+  attachments: { files: [] }, // ตอนนี้เป็น AttachedFile[] แทน string[]
 };
 
 type SnackState = { open: boolean; msg: string; sev: "success" | "error" | "warning" | "info" };

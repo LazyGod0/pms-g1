@@ -6,6 +6,7 @@ import {
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import { SubmissionForm } from "@/types/submission";
+import { formatFileSize } from "@/libs/file-upload";
 
 type Props = { form: SubmissionForm };
 
@@ -35,6 +36,7 @@ export default function SidebarSummary({ form }: Props) {
   const refsCount = form.identifiers?.references?.length ?? 0;
 
   const filesCount = form.attachments?.files?.length ?? 0;
+  const totalFileSize = form.attachments?.files?.reduce((sum, file) => sum + file.size, 0) ?? 0;
 
   return (
     <Stack spacing={2}>
@@ -49,11 +51,17 @@ export default function SidebarSummary({ form }: Props) {
             <Typography variant="body2" color="text.secondary">{percent}%</Typography>
           </Box>
 
-          <Stack spacing={0.5} mt={1}>
-            {checks.map(([label, ok]) => (
+          <Stack spacing={1} mt={2}>
+            {checks.map(([label, done]) => (
               <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                {ok ? <CheckCircleIcon fontSize="small" color="success" /> : <RadioButtonUncheckedIcon fontSize="small" color="disabled" />}
-                <Typography variant="body2">{label}</Typography>
+                {done ? (
+                  <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />
+                ) : (
+                  <RadioButtonUncheckedIcon sx={{ fontSize: 16, color: "grey.400" }} />
+                )}
+                <Typography variant="body2" color={done ? "text.primary" : "text.secondary"}>
+                  {label}
+                </Typography>
               </Box>
             ))}
           </Stack>
@@ -63,49 +71,47 @@ export default function SidebarSummary({ form }: Props) {
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent>
           <Typography fontWeight={700} mb={1}>Summary</Typography>
-          <Stack spacing={1.25}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Title:</Typography>
-              <Typography fontWeight={700}>{form.basics.title || "-"}</Typography>
+          <Stack spacing={1.5}>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">Authors</Typography>
+              <Typography variant="body2">{authorsCount}</Typography>
             </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Type:</Typography>
-                <Typography>{form.basics.type || "-"}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Level:</Typography>
-                <Typography>{form.basics.level || "-"}</Typography>
-              </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">Keywords</Typography>
+              <Typography variant="body2">{keywordsCount}</Typography>
             </Box>
-
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">References</Typography>
+              <Typography variant="body2">{refsCount}</Typography>
+            </Box>
             <Divider />
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Authors:</Typography>
-                <Typography>{authorsCount} added</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Keywords:</Typography>
-                <Typography>{keywordsCount} added</Typography>
-              </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">Uploaded Files</Typography>
+              <Typography variant="body2">{filesCount}</Typography>
             </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-              <Box>
-                <Typography variant="body2" color="text.secondary">References:</Typography>
-                <Typography>{refsCount} added</Typography>
+            {filesCount > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="body2" color="text.secondary">Total File Size</Typography>
+                <Typography variant="body2">{formatFileSize(totalFileSize)}</Typography>
               </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary">Files:</Typography>
-                <Typography>{filesCount} uploaded</Typography>
-              </Box>
-            </Box>
+            )}
           </Stack>
         </CardContent>
       </Card>
+
+      {form.basics.title && (
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography fontWeight={700} mb={1}>Preview</Typography>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              {form.basics.title}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {form.basics.type} • {form.basics.level} • {form.basics.year}
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
     </Stack>
   );
 }
