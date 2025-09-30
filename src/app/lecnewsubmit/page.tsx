@@ -458,7 +458,7 @@ function LecNewSubmitContent() {
                         '&:hover': {
                           borderColor: 'secondary.dark',
                           bgcolor: 'secondary.main',
-                          color: 'white',
+                          color: '#ffffff', // เปลี่ยนเป็นสีขาวชัดเจน
                         }
                       }}
                     >

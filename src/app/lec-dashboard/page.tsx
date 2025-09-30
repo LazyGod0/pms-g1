@@ -13,10 +13,13 @@ import ArticleIcon from '@mui/icons-material/Article';
 import SchoolIcon from '@mui/icons-material/School';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import PublishIcon from '@mui/icons-material/Publish';
+import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { db } from '@/configs/firebase-config';
+import { db, auth } from '@/configs/firebase-config';
+import { signOut } from 'firebase/auth';
 import { collection, getDocs, orderBy, query, limit, Timestamp } from 'firebase/firestore';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts';
@@ -87,7 +90,7 @@ function StatCard({
       sx={{
         borderRadius: 4,
         background: gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
+        color: '#ffffff', // เปลี่ยนเป็นสีขาวแบบ explicit
         position: 'relative',
         overflow: 'hidden',
         transition: 'all 0.3s ease-in-out',
@@ -119,16 +122,17 @@ function StatCard({
               placeItems: 'center',
               bgcolor: 'rgba(255,255,255,0.2)',
               backdropFilter: 'blur(10px)',
+              color: '#ffffff', // เพิ่มสีขาวให้ไอคอน
             }}
           >
             {icon}
           </Box>
 
           <Box sx={{ flex: 1 }}>
-            <Typography variant="body2" sx={{ opacity: 0.9, mb: 0.5 }}>
+            <Typography variant="body2" sx={{ opacity: 0.9, mb: 0.5, color: '#ffffff' }}>
               {label}
             </Typography>
-            <Typography variant="h4" fontWeight={800}>
+            <Typography variant="h4" fontWeight={800} sx={{ color: '#ffffff' }}>
               {value}
             </Typography>
           </Box>
@@ -361,6 +365,15 @@ function LecturerDashboardContent() {
     fetchData();
   }, [user?.uid]);
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -411,29 +424,81 @@ function LecturerDashboardContent() {
               </Stack>
             </Box>
 
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<PublishIcon />}
-              onClick={() => router.push('/lecnewsubmit')}
-              sx={{
-                borderRadius: 4,
-                px: 4,
-                py: 1.5,
-                fontWeight: 700,
-                fontSize: '1.1rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: "0 8px 32px rgba(102, 126, 234, 0.4)",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 12px 40px rgba(102, 126, 234, 0.5)",
-                  background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                },
-                transition: "all 0.3s ease-in-out",
-              }}
-            >
-              เพิ่มผลงานใหม่
-            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<PublishIcon />}
+                onClick={() => router.push('/lecnewsubmit')}
+                sx={{
+                  borderRadius: 4,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  boxShadow: "0 8px 32px rgba(102, 126, 234, 0.4)",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: "0 12px 40px rgba(102, 126, 234, 0.5)",
+                    background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                  },
+                  transition: "all 0.3s ease-in-out",
+                }}
+              >
+                เพิ่มผลงานใหม่
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                startIcon={<PersonIcon />}
+                onClick={() => router.push('/profile')}
+                sx={{
+                  borderRadius: 4,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+                  },
+                  transition: 'all 0.3s ease-in-out',
+                }}
+              >
+                ข้อมูลส่วนตัว
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="large"
+                startIcon={<LogoutIcon />}
+                onClick={handleLogout}
+                sx={{
+                  borderRadius: 4,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  borderColor: 'error.main',
+                  color: 'error.main',
+                  '&:hover': {
+                    backgroundColor: 'error.main',
+                    color: 'white',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 20px rgba(244, 67, 54, 0.3)',
+                  },
+                  transition: 'all 0.3s ease-in-out',
+                }}
+              >
+                ออกจากระบบ
+              </Button>
+            </Stack>
           </Stack>
         </Box>
 

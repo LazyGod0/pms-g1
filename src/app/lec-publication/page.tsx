@@ -4,7 +4,7 @@ import {
     Box, Button, Chip, Container, Divider, IconButton, InputAdornment, Menu, MenuItem, Paper, Stack, Table,
     TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, Select, FormControl,
     InputLabel, SelectChangeEvent, Tabs, Tab, useMediaQuery, Card, CardContent, Dialog, DialogTitle, DialogContent,
-    DialogContentText, DialogActions, Alert, Snackbar,
+    DialogContentText, DialogActions, Alert, Snackbar, Link,
 } from "@mui/material";
 import Pagination from "@mui/material/Pagination";
 import SearchIcon from "@mui/icons-material/Search";
@@ -18,6 +18,9 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
+import GetAppIcon from "@mui/icons-material/GetApp";
 import { useMemo, useState, MouseEvent, useEffect } from "react";
 import dayjs from "dayjs";
 import { auth, db } from "@/configs/firebase-config";
@@ -46,6 +49,7 @@ export type Pub = {
     doi?: string;
     updatedAt: string;
     faculty?: string;
+    attachments?: { name: string; url: string; }[]; // New field for attachments
 };
 
 const statusColor: Record<
@@ -147,6 +151,14 @@ function mapSubmissionToPub(id: string, d: any, userDoc?: any): Pub {
         tsToISO(d?.createdAt) ??
         new Date().toISOString();
 
+    // Map attachments if they exist
+    const attachments = Array.isArray(d?.attachments)
+        ? d.attachments.map((a: any) => ({
+            name: a?.name ?? "",
+            url: a?.url ?? "",
+        }))
+        : [];
+
     return {
         id,
         title: basics?.title ?? "(Untitled)",
@@ -158,6 +170,7 @@ function mapSubmissionToPub(id: string, d: any, userDoc?: any): Pub {
         doi: identifiers?.doi || undefined,
         updatedAt,
         faculty: userDoc?.faculty || undefined,
+        attachments, // Include attachments in the mapped publication
     };
 }
 
@@ -222,7 +235,8 @@ export default function PublicationsPage() {
     }, [router]);
 
     const [queryTxt, setQueryTxt] = useState("");
-    const [year, setYear] = useState<string>("ทุกปี");
+    const [yearStart, setYearStart] = useState<string>("");
+    const [yearEnd, setYearEnd] = useState<string>("");
     const [type, setType] = useState<string>("ทุกประเภท");
     const [level, setLevel] = useState<string>("ทุกระดับ");
     const [tab, setTab] = useState<TabKey>("ทั้งหมด");
@@ -350,12 +364,14 @@ export default function PublicationsPage() {
                     .join(" ")
                     .toLowerCase()
                     .includes(queryTxt.toLowerCase());
-            const matchYear = year === "ทุกปี" || String(p.year) === year;
+            const matchYear =
+                (yearStart === "" || p.year >= Number(yearStart)) &&
+                (yearEnd === "" || p.year <= Number(yearEnd));
             const matchType = type === "ทุกประเภท" || p.type === type;
             const matchLevel = level === "ทุกระดับ" || p.level === level;
             return matchTab && matchQuery && matchYear && matchType && matchLevel;
         });
-    }, [data, queryTxt, year, type, level, tab]);
+    }, [data, queryTxt, yearStart, yearEnd, type, level, tab]);
 
     const counts = useMemo(
         () =>
@@ -385,7 +401,7 @@ export default function PublicationsPage() {
     // ถ้าเปลี่ยนตัวกรอง/แท็บ/ค้นหา ให้กลับไปหน้า 1
     useEffect(() => {
         setPage(1);
-    }, [queryTxt, year, type, level, tab]);
+    }, [queryTxt, yearStart, yearEnd, type, level, tab]);
 
     // กันกรณี page > totalPages (เช่นข้อมูลเหลือน้อยลง)
     useEffect(() => {
@@ -400,7 +416,8 @@ export default function PublicationsPage() {
 
     const clearFilters = () => {
         setQueryTxt("");
-        setYear("ทุกปี");
+        setYearStart("");
+        setYearEnd("");
         setType("ทุกประเภท");
         setLevel("ทุกระดับ");
     };
@@ -415,466 +432,865 @@ export default function PublicationsPage() {
 
     return (
         <ProtectedRoute requiredRole="lecturer" redirectTo="/login">
-            <Container
-                maxWidth="lg"
+            <Box
                 sx={{
+                    minHeight: "100vh",
+                    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
                     py: 4,
-                    '& .MuiPaper-outlined': {
-                        borderColor: (t) => (t.palette.mode === 'dark' ? t.palette.grey[800] : t.palette.grey[200]),
+                    position: 'relative',
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage: `
+                            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8) 0%, transparent 50%),
+                            radial-gradient(circle at 75% 75%, rgba(79,172,254,0.1) 0%, transparent 50%)
+                        `,
+                        zIndex: 0,
+                        pointerEvents: 'none',
                     },
                 }}
             >
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    spacing={2}
-                    sx={{ mb: 2 }}
-                >
-                    <Box>
-                        <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: 0.2 }}>
-                            ผลงานตีพิมพ์ของฉัน
-                        </Typography>
-                        <Typography color="text.secondary">
-                            จัดการผลงานวิจัยและการส่งบทความของคุณ
-                        </Typography>
-                    </Box>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddRoundedIcon />}
-                        size={isSm ? "medium" : "large"}
-                        sx={{
-                            borderRadius: 2.5,
-                            px: 2.5,
-                            boxShadow: 4,
-                            textTransform: 'none',
-                            fontWeight: 800,
-                            transition: 'transform 120ms ease, box-shadow 120ms ease',
-                            '&:hover': { transform: 'translateY(-1px)', boxShadow: 6 },
-                        }}
-                        onClick={() => router.push('/lecnewsubmit')}
-                    >
-                        ส่งผลงานใหม่
-                    </Button>
-                </Stack>
-
-                <Paper
-                    variant="outlined"
-                    sx={{
-                        p: 2,
-                        borderRadius: 3,
-                        mb: 2,
-                        backdropFilter: 'saturate(1.1)',
-                        '& .MuiFormControl-root': { bgcolor: 'background.paper', borderRadius: 2 },
-                    }}
-                >
-                    <Stack
-                        direction={{ xs: "column", md: "row" }}
-                        spacing={2}
-                        alignItems="stretch"
-                    >
-                        <TextField
-                            placeholder="ค้นหาผลงานตีพิมพ์..."
-                            fullWidth
-                            value={queryTxt}
-                            onChange={(e) => setQueryTxt(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 2,
-                                }
-                            }}
-                        />
-                        <FormControl sx={{ minWidth: 160 }}>
-                            <InputLabel>ทุกปี</InputLabel>
-                            <Select
-                                value={year}
-                                label="ทุกปี"
-                                onChange={(e: SelectChangeEvent) => setYear(e.target.value)}
-                                IconComponent={ExpandMoreRoundedIcon as any}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                {years.map((y) => (
-                                    <MenuItem key={y} value={y}>
-                                        {y}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl sx={{ minWidth: 160 }}>
-                            <InputLabel>ทุกประเภท</InputLabel>
-                            <Select
-                                value={type}
-                                label="ทุกประเภท"
-                                onChange={(e: SelectChangeEvent) => setType(e.target.value)}
-                                IconComponent={ExpandMoreRoundedIcon as any}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                {types.map((t) => (
-                                    <MenuItem key={t} value={t}>
-                                        {t}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl sx={{ minWidth: 160 }}>
-                            <InputLabel>ทุกระดับ</InputLabel>
-                            <Select
-                                value={level}
-                                label="ทุกระดับ"
-                                onChange={(e: SelectChangeEvent) => setLevel(e.target.value)}
-                                IconComponent={ExpandMoreRoundedIcon as any}
-                                sx={{ borderRadius: 2 }}
-                            >
-                                {levels.map((l) => (
-                                    <MenuItem key={l} value={l}>
-                                        {l}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <Button
-                            onClick={clearFilters}
-                            variant="outlined"
-                            color="inherit"
-                            sx={{
-                                whiteSpace: "nowrap",
-                                px: 3,
-                                borderRadius: 2,
-                                textTransform: 'none',
-                                fontWeight: 700
-                            }}
-                        >
-                            ล้างตัวกรอง
-                        </Button>
-                    </Stack>
-                </Paper>
-
-                <Paper
-                    variant="outlined"
-                    sx={{
-                        borderRadius: 3,
-                        mb: 2,
-                        px: 1,
-                    }}
-                >
-                    <Tabs
-                        value={tab}
-                        onChange={(_, v) => setTab(v)}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        sx={{
-                            "& .MuiTab-root": {
-                                textTransform: "none",
-                                fontWeight: 800,
-                                minHeight: 48,
-                                px: 1.5,
-                            },
-                            "& .MuiTabs-indicator": {
-                                height: 3,
-                                borderRadius: 3,
-                            },
-                        }}
-                    >
-                        {(["ทั้งหมด", "อนุมัติแล้ว", "ไม่อนุมัติ", "รอการพิจารณา", "ร่าง"] as TabKey[]).map(
-                            (k) => (
-                                <Tab
-                                    key={k}
-                                    value={k}
-                                    label={
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <span>{k}</span>
-                                            <Chip
-                                                size="small"
-                                                label={counts[k]}
-                                                variant="outlined"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    borderRadius: 1.5,
-                                                    height: 22
-                                                }}
-                                            />
-                                        </Stack>
-                                    }
-                                />
-                            )
-                        )}
-                    </Tabs>
-                </Paper>
-
-                <TableContainer
-                    component={Paper}
-                    variant="outlined"
-                    sx={{
-                        borderRadius: 3,
-                        overflow: 'hidden',
-                        boxShadow: 0,
-                    }}
-                >
-                    <Table size="medium" stickyHeader>
-                        <TableHead>
-                            <TableRow
+                <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1 }}>
+                    {/* Header Section with Back Button */}
+                    <Box sx={{ mb: 4 }}>
+                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+                            <IconButton
+                                onClick={() => router.push('/lec-dashboard')}
                                 sx={{
-                                    '& th': {
-                                        fontWeight: 800,
-                                        bgcolor: (t) => (t.palette.mode === 'dark' ? t.palette.grey[900] : t.palette.grey[50]),
-                                        borderBottomWidth: 2,
-                                    }
+                                    bgcolor: 'white',
+                                    boxShadow: 2,
+                                    '&:hover': { 
+                                        bgcolor: 'grey.100',
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: 4,
+                                    },
+                                    transition: 'all 0.3s ease-in-out',
                                 }}
                             >
-                                <TableCell>ชื่อเรื่อง</TableCell>
-                                <TableCell>ผู้แต่ง</TableCell>
-                                <TableCell>ปี</TableCell>
-                                <TableCell>ประเภท/ระดับ</TableCell>
-                                <TableCell>สถานะ</TableCell>
-                                <TableCell>DOI</TableCell>
-                                <TableCell>อัปเดต</TableCell>
-                                <TableCell align="right" />
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {loading && (
-                                <TableRow>
-                                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                                        <Typography color="text.secondary">กำลังโหลด...</Typography>
-                                    </TableCell>
-                                </TableRow>
-                            )}
+                                <ArrowBackIcon />
+                            </IconButton>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography
+                                    variant="h3"
+                                    fontWeight={800}
+                                    sx={{
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        backgroundClip: "text",
+                                        WebkitBackgroundClip: "text",
+                                        color: "transparent",
+                                        mb: 1,
+                                    }}
+                                >
+                                    ผลงานตีพิมพ์ของฉัน
+                                </Typography>
+                                <Typography variant="h6" color="text.secondary" fontWeight={500}>
+                                    จัดการและติดตามผลงานวิจัยและการตีพิมพ์ของคุณ
+                                </Typography>
+                            </Box>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddRoundedIcon />}
+                                size={isSm ? "medium" : "large"}
+                                sx={{
+                                    borderRadius: 4,
+                                    px: 4,
+                                    py: 1.5,
+                                    fontWeight: 700,
+                                    fontSize: '1.1rem',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    boxShadow: "0 8px 32px rgba(102, 126, 234, 0.4)",
+                                    "&:hover": {
+                                        transform: "translateY(-2px)",
+                                        boxShadow: "0 12px 40px rgba(102, 126, 234, 0.5)",
+                                        background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                                    },
+                                    transition: "all 0.3s ease-in-out",
+                                }}
+                                onClick={() => router.push('/lecnewsubmit')}
+                            >
+                                ส่งผลงานใหม่
+                            </Button>
+                        </Stack>
+                    </Box>
 
-                            {!loading &&
-                                paginated.map((p) => (
-                                    <TableRow
-                                        key={p.id}
-                                        hover
-                                        sx={{
-                                            transition: 'background-color 120ms ease',
-                                            '&:nth-of-type(even)': {
-                                                bgcolor: (t) => (t.palette.mode === 'dark' ? 'transparent' : t.palette.grey[50]),
-                                            },
-                                            '&:hover': {
-                                                bgcolor: (t) => (t.palette.mode === 'dark' ? t.palette.action.hover : t.palette.grey[100]),
-                                            },
-                                        }}
-                                    >
-                                        <TableCell sx={{ py: 1.5 }}>
-                                            <Typography fontWeight={800} sx={{ mb: 0.5, lineHeight: 1.25 }}>
-                                                {p.title}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {p.faculty}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell sx={{ minWidth: 220, py: 1.5 }}>
-                                            <Stack spacing={0.5}>
-                                                {p.authors.map((a, index) => (
-                                                    <Stack key={`${a.name}-${index}`} direction="row" spacing={1} alignItems="center">
-                                                        <Typography variant="body2">{a.name}</Typography>
-                                                        {a.tag && (
-                                                            <Chip
-                                                                size="small"
-                                                                variant="outlined"
-                                                                label={a.tag}
-                                                                sx={{ borderRadius: 1.5, height: 22 }}
-                                                            />
-                                                        )}
-                                                    </Stack>
-                                                ))}
-                                            </Stack>
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1.5 }}>{p.year}</TableCell>
-                                        <TableCell sx={{ py: 1.5 }}>
-                                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                                                <Chip size="small" label={p.type} sx={{ borderRadius: 1.5 }} />
-                                                <Chip size="small" label={p.level} sx={{ borderRadius: 1.5 }} />
-                                            </Stack>
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1.5 }}>
-                                            <StatusChip status={p.status} />
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1.5 }}>
-                                            {p.doi ? (
-                                                <Stack direction="row" spacing={1} alignItems="center">
-                                                    <LinkOutlinedIcon fontSize="small" />
-                                                    <Typography
-                                                        variant="body2"
-                                                        component="a"
-                                                        href={`https://doi.org/${p.doi}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        sx={{
-                                                            textDecoration: "none",
-                                                            color: 'primary.main',
-                                                            fontWeight: 700,
-                                                            '&:hover': { textDecoration: 'underline' }
-                                                        }}
-                                                    >
-                                                        {p.doi}
-                                                    </Typography>
-                                                </Stack>
-                                            ) : (
-                                                "-"
-                                            )}
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1.5 }}>
-                                            {dayjs(p.updatedAt).format("DD MMM YYYY")}
-                                        </TableCell>
-                                        <TableCell align="right" width={40} sx={{ py: 1.5 }}>
-                                            <Tooltip title="ตัวเลือกเพิ่มเติม" arrow>
-                                                <IconButton
-                                                    onClick={(e) => openMenu(e, p)}
+                    {/* Search and Filter Section */}
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 3,
+                            borderRadius: 6,
+                            mb: 3,
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+                            backdropFilter: "blur(20px)",
+                            background: "rgba(255,255,255,0.95)",
+                            border: "1px solid rgba(255,255,255,0.3)",
+                        }}
+                    >
+                        <Stack
+                            direction={{ xs: "column", md: "row" }}
+                            spacing={2}
+                            alignItems="stretch"
+                        >
+                            <TextField
+                                placeholder="ค้นหาผลงานตีพิมพ์..."
+                                fullWidth
+                                value={queryTxt}
+                                onChange={(e) => setQueryTxt(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: 'primary.main' }} />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 3,
+                                        bgcolor: 'white',
+                                        '&:hover fieldset': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    }
+                                }}
+                            />
+                            <FormControl sx={{ minWidth: 160 }}>
+                                <InputLabel>ปีเริ่มต้น</InputLabel>
+                                <Select
+                                    value={yearStart}
+                                    label="ปีเริ่มต้น"
+                                    onChange={(e: SelectChangeEvent) => setYearStart(e.target.value)}
+                                    IconComponent={ExpandMoreRoundedIcon as any}
+                                    sx={{ 
+                                        borderRadius: 3,
+                                        bgcolor: 'white',
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    }}
+                                >
+                                    {years.map((y) => (
+                                        <MenuItem key={y} value={y}>
+                                            {y}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl sx={{ minWidth: 160 }}>
+                                <InputLabel>ปีสิ้นสุด</InputLabel>
+                                <Select
+                                    value={yearEnd}
+                                    label="ปีสิ้นสุด"
+                                    onChange={(e: SelectChangeEvent) => setYearEnd(e.target.value)}
+                                    IconComponent={ExpandMoreRoundedIcon as any}
+                                    sx={{ 
+                                        borderRadius: 3,
+                                        bgcolor: 'white',
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    }}
+                                >
+                                    {years.map((y) => (
+                                        <MenuItem key={y} value={y}>
+                                            {y}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl sx={{ minWidth: 160 }}>
+                                <InputLabel>ประเภท</InputLabel>
+                                <Select
+                                    value={type}
+                                    label="ประเภท"
+                                    onChange={(e: SelectChangeEvent) => setType(e.target.value)}
+                                    IconComponent={ExpandMoreRoundedIcon as any}
+                                    sx={{ 
+                                        borderRadius: 3,
+                                        bgcolor: 'white',
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    }}
+                                >
+                                    {types.map((t) => (
+                                        <MenuItem key={t} value={t}>
+                                            {t}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl sx={{ minWidth: 160 }}>
+                                <InputLabel>ระดับ</InputLabel>
+                                <Select
+                                    value={level}
+                                    label="ระดับ"
+                                    onChange={(e: SelectChangeEvent) => setLevel(e.target.value)}
+                                    IconComponent={ExpandMoreRoundedIcon as any}
+                                    sx={{ 
+                                        borderRadius: 3,
+                                        bgcolor: 'white',
+                                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                                            borderColor: 'primary.main',
+                                        },
+                                    }}
+                                >
+                                    {levels.map((l) => (
+                                        <MenuItem key={l} value={l}>
+                                            {l}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <Button
+                                onClick={clearFilters}
+                                variant="outlined"
+                                color="inherit"
+                                sx={{
+                                    whiteSpace: "nowrap",
+                                    px: 4,
+                                    borderRadius: 3,
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    bgcolor: 'white',
+                                    '&:hover': {
+                                        bgcolor: 'grey.100',
+                                        transform: 'translateY(-1px)',
+                                    },
+                                    transition: 'all 0.3s ease-in-out',
+                                }}
+                            >
+                                ล้างตัวกรอง
+                            </Button>
+                        </Stack>
+                    </Paper>
+
+                    {/* Status Tabs */}
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            borderRadius: 6,
+                            mb: 3,
+                            px: 2,
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+                            backdropFilter: "blur(20px)",
+                            background: "rgba(255,255,255,0.95)",
+                            border: "1px solid rgba(255,255,255,0.3)",
+                        }}
+                    >
+                        <Tabs
+                            value={tab}
+                            onChange={(_, v) => setTab(v)}
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            sx={{
+                                "& .MuiTab-root": {
+                                    textTransform: "none",
+                                    fontWeight: 700,
+                                    minHeight: 56,
+                                    px: 3,
+                                    borderRadius: 3,
+                                    margin: 0.5,
+                                    transition: 'all 0.3s ease-in-out',
+                                    '&:hover': {
+                                        bgcolor: 'rgba(102, 126, 234, 0.1)',
+                                    },
+                                },
+                                "& .MuiTabs-indicator": {
+                                    height: 4,
+                                    borderRadius: 2,
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                },
+                            }}
+                        >
+                            {(["ทั้งหมด", "อนุมัติแล้ว", "ไม่อนุมัติ", "รอการพิจารณา", "ร่าง"] as TabKey[]).map(
+                                (k) => (
+                                    <Tab
+                                        key={k}
+                                        value={k}
+                                        label={
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <span>{k}</span>
+                                                <Chip
+                                                    size="small"
+                                                    label={counts[k]}
                                                     sx={{
+                                                        fontWeight: 700,
                                                         borderRadius: 2,
-                                                        '&:hover': { bgcolor: (t) => t.palette.action.hover }
+                                                        height: 24,
+                                                        bgcolor: 'primary.main',
+                                                        color: 'white',
+                                                        '& .MuiChip-label': {
+                                                            px: 1,
+                                                        },
                                                     }}
-                                                >
-                                                    <MoreHorizRoundedIcon />
-                                                </IconButton>
-                                            </Tooltip>
+                                                />
+                                            </Stack>
+                                        }
+                                    />
+                                )
+                            )}
+                        </Tabs>
+                    </Paper>
+
+                    {/* Publications Table */}
+                    <TableContainer
+                        component={Paper}
+                        elevation={0}
+                        sx={{
+                            borderRadius: 6,
+                            overflow: 'hidden',
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+                            backdropFilter: "blur(20px)",
+                            background: "rgba(255,255,255,0.95)",
+                            border: "1px solid rgba(255,255,255,0.3)",
+                        }}
+                    >
+                        <Table size="medium" stickyHeader>
+                            <TableHead>
+                                <TableRow
+                                    sx={{
+                                        '& th': {
+                                            fontWeight: 800,
+                                            bgcolor: 'rgba(102, 126, 234, 0.1)',
+                                            borderBottomWidth: 2,
+                                            borderBottomColor: 'primary.main',
+                                            color: 'primary.main',
+                                        }
+                                    }}
+                                >
+                                    <TableCell>ชื่อเรื่อง</TableCell>
+                                    <TableCell>ผู้แต่ง</TableCell>
+                                    <TableCell>ปี</TableCell>
+                                    <TableCell>ประเภท/ระดับ</TableCell>
+                                    <TableCell>สถานะ</TableCell>
+                                    <TableCell>DOI</TableCell>
+                                    <TableCell>ไฟล์แนบ</TableCell>
+                                    <TableCell>อัปเดต</TableCell>
+                                    <TableCell align="right" />
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {loading && (
+                                    <TableRow>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: 2,
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: '50%',
+                                                        border: '4px solid',
+                                                        borderColor: 'primary.main',
+                                                        borderTopColor: 'transparent',
+                                                        animation: 'spin 1s linear infinite',
+                                                        '@keyframes spin': {
+                                                            '0%': { transform: 'rotate(0deg)' },
+                                                            '100%': { transform: 'rotate(360deg)' },
+                                                        },
+                                                    }}
+                                                />
+                                                <Typography color="text.secondary" fontWeight={600}>
+                                                    กำลังโหลดข้อมูล...
+                                                </Typography>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )}
 
-                            {!loading && filtered.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                                        <Typography color={err ? "error" : "text.secondary"}>
-                                            {err ? "เกิดข้อผิดพลาด" : "ไม่พบผลลัพธ์"}
-                                        </Typography>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                {!loading &&
+                                    paginated.map((p) => (
+                                        <TableRow
+                                            key={p.id}
+                                            hover
+                                            sx={{
+                                                transition: 'all 0.3s ease-in-out',
+                                                '&:nth-of-type(even)': {
+                                                    bgcolor: 'rgba(102, 126, 234, 0.02)',
+                                                },
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(102, 126, 234, 0.08)',
+                                                    transform: 'translateY(-1px)',
+                                                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                                },
+                                            }}
+                                        >
+                                            <TableCell sx={{ py: 2 }}>
+                                                <Typography fontWeight={800} sx={{ mb: 0.5, lineHeight: 1.25 }}>
+                                                    {p.title}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {p.faculty}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ minWidth: 220, py: 2 }}>
+                                                <Stack spacing={0.5}>
+                                                    {p.authors.map((a, index) => (
+                                                        <Stack key={`${a.name}-${index}`} direction="row" spacing={1} alignItems="center">
+                                                            <Typography variant="body2" fontWeight={600}>{a.name}</Typography>
+                                                            {a.tag && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    label={a.tag}
+                                                                    sx={{ 
+                                                                        borderRadius: 2, 
+                                                                        height: 22,
+                                                                        fontWeight: 600,
+                                                                        borderColor: 'primary.main',
+                                                                        color: 'primary.main',
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    ))}
+                                                </Stack>
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2 }}>
+                                                <Typography fontWeight={700}>{p.year}</Typography>
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2 }}>
+                                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                                    <Chip 
+                                                        size="small" 
+                                                        label={p.type} 
+                                                        sx={{ 
+                                                            borderRadius: 2,
+                                                            fontWeight: 600,
+                                                            bgcolor: 'secondary.main',
+                                                            color: 'white',
+                                                        }} 
+                                                    />
+                                                    <Chip 
+                                                        size="small" 
+                                                        label={p.level} 
+                                                        sx={{ 
+                                                            borderRadius: 2,
+                                                            fontWeight: 600,
+                                                            bgcolor: 'info.main',
+                                                            color: 'white',
+                                                        }} 
+                                                    />
+                                                </Stack>
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2 }}>
+                                                <StatusChip status={p.status} />
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2 }}>
+                                                {p.doi ? (
+                                                    <Stack direction="row" spacing={1} alignItems="center">
+                                                        <LinkOutlinedIcon fontSize="small" color="primary" />
+                                                        <Typography
+                                                            variant="body2"
+                                                            component="a"
+                                                            href={`https://doi.org/${p.doi}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            sx={{
+                                                                textDecoration: "none",
+                                                                color: 'primary.main',
+                                                                fontWeight: 700,
+                                                                '&:hover': { 
+                                                                    textDecoration: 'underline',
+                                                                    color: 'primary.dark',
+                                                                }
+                                                            }}
+                                                        >
+                                                            {p.doi}
+                                                        </Typography>
+                                                    </Stack>
+                                                ) : (
+                                                    <Typography color="text.disabled">-</Typography>
+                                                )}
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2, minWidth: 200 }}>
+                                                {p.attachments && p.attachments.length > 0 ? (
+                                                    <Stack spacing={1}>
+                                                        {p.attachments.map((attachment, attIndex) => (
+                                                            <Tooltip
+                                                                key={attIndex}
+                                                                title={`ดาวน์โหลด: ${attachment.name}`}
+                                                                arrow
+                                                            >
+                                                                <Link
+                                                                    href={attachment.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    sx={{
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 1,
+                                                                        textDecoration: 'none',
+                                                                        color: 'primary.main',
+                                                                        fontWeight: 600,
+                                                                        fontSize: '0.875rem',
+                                                                        px: 1.5,
+                                                                        py: 0.5,
+                                                                        borderRadius: 2,
+                                                                        bgcolor: 'rgba(102, 126, 234, 0.1)',
+                                                                        maxWidth: '180px',
+                                                                        transition: 'all 0.3s ease-in-out',
+                                                                        '&:hover': {
+                                                                            bgcolor: 'primary.main',
+                                                                            color: 'white',
+                                                                            transform: 'translateY(-1px)',
+                                                                            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                                                                        },
+                                                                    }}
+                                                                >
+                                                                    <GetAppIcon fontSize="small" />
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                            maxWidth: '120px',
+                                                                        }}
+                                                                    >
+                                                                        {attachment.name.length > 15
+                                                                            ? `${attachment.name.substring(0, 15)}...`
+                                                                            : attachment.name
+                                                                        }
+                                                                    </Typography>
+                                                                </Link>
+                                                            </Tooltip>
+                                                        ))}
+                                                        {p.attachments.length > 1 && (
+                                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                                ({p.attachments.length} ไฟล์)
+                                                            </Typography>
+                                                        )}
+                                                    </Stack>
+                                                ) : (
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <AttachFileIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.disabled"
+                                                            fontWeight={500}
+                                                        >
+                                                            ไม่มีไฟล์แนบ
+                                                        </Typography>
+                                                    </Stack>
+                                                )}
+                                            </TableCell>
+                                            <TableCell sx={{ py: 2 }}>
+                                                <Typography variant="body2" fontWeight={600}>
+                                                    {dayjs(p.updatedAt).format("DD MMM YYYY")}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell align="right" width={40} sx={{ py: 2 }}>
+                                                <Tooltip title="ตัวเลือกเพิ่มเติม" arrow>
+                                                    <IconButton
+                                                        onClick={(e) => openMenu(e, p)}
+                                                        sx={{
+                                                            borderRadius: 3,
+                                                            bgcolor: 'rgba(102, 126, 234, 0.1)',
+                                                            '&:hover': { 
+                                                                bgcolor: 'rgba(102, 126, 234, 0.2)',
+                                                                transform: 'scale(1.1)',
+                                                            },
+                                                            transition: 'all 0.3s ease-in-out',
+                                                        }}
+                                                    >
+                                                        <MoreHorizRoundedIcon color="primary" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
 
-                {/* แถบเพจจิ้ง */}
-                <Stack direction="row" justifyContent="center" sx={{ mt: 2 }}>
-                    <Pagination
-                        page={page}
-                        count={totalPages}
-                        onChange={(_, v) => setPage(v)}
-                        color="primary"
-                        shape="rounded"
-                        siblingCount={1}
-                        boundaryCount={1}
+                                {!loading && filtered.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: 2,
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        width: 80,
+                                                        height: 80,
+                                                        borderRadius: '50%',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        bgcolor: 'rgba(102, 126, 234, 0.1)',
+                                                    }}
+                                                >
+                                                    <DescriptionOutlinedIcon 
+                                                        sx={{ fontSize: 40, color: 'primary.main' }} 
+                                                    />
+                                                </Box>
+                                                <Typography color={err ? "error" : "text.secondary"} fontWeight={600}>
+                                                    {err ? "เกิดข้อผิดพลาดในการโหลดข้อมูล" : "ไม่พบผลงานตีพิมพ์"}
+                                                </Typography>
+                                                {!err && (
+                                                    <Typography variant="body2" color="text.disabled">
+                                                        ลองปรับเปลี่ยนตัวกรองหรือเพิ่มผลงานใหม่
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    {/* Pagination */}
+                    {filtered.length > 0 && (
+                        <Stack direction="row" justifyContent="center" sx={{ mt: 4 }}>
+                            <Pagination
+                                page={page}
+                                count={totalPages}
+                                onChange={(_, v) => setPage(v)}
+                                color="primary"
+                                shape="rounded"
+                                siblingCount={1}
+                                boundaryCount={1}
+                                size="large"
+                                sx={{
+                                    '& .MuiPagination-ul': { gap: 1 },
+                                    '& .MuiPaginationItem-root': {
+                                        borderRadius: 3,
+                                        fontWeight: 700,
+                                        bgcolor: 'white',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                        '&:hover': {
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                        },
+                                        '&.Mui-selected': {
+                                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                            color: 'white',
+                                            '&:hover': {
+                                                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                                            },
+                                        },
+                                        transition: 'all 0.3s ease-in-out',
+                                    }
+                                }}
+                            />
+                        </Stack>
+                    )}
+
+                    {/* Statistics Summary */}
+                    <Paper
+                        elevation={0}
                         sx={{
-                            '& .MuiPagination-ul': { gap: 0.5 },
-                            '& .MuiPaginationItem-root': {
-                                borderRadius: 2,
-                                fontWeight: 700
+                            mt: 4,
+                            p: 4,
+                            borderRadius: 6,
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+                            backdropFilter: "blur(20px)",
+                            background: "rgba(255,255,255,0.95)",
+                            border: "1px solid rgba(255,255,255,0.3)",
+                        }}
+                    >
+                        <Typography variant="h6" fontWeight={800} sx={{ mb: 3, textAlign: 'center' }}>
+                            สรุปสถิติผลงาน
+                        </Typography>
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="stretch">
+                            <StatCard label="รวมที่แสดง" value={filtered.length} />
+                            <StatCard label="วารสาร" value={filtered.filter((p) => p.type === "Journal").length} />
+                            <StatCard
+                                label="ระดับนานาชาติ"
+                                value={filtered.filter((p) => p.level === "International").length}
+                            />
+                            <StatCard label="อนุมัติแล้ว" value={filtered.filter((p) => p.status === "Approved").length} />
+                        </Stack>
+                    </Paper>
+
+                    {/* Action Menu */}
+                    <Menu
+                        anchorEl={anchor}
+                        open={Boolean(anchor)}
+                        onClose={closeMenu}
+                        PaperProps={{
+                            sx: { 
+                                minWidth: 240, 
+                                borderRadius: 3, 
+                                p: 1,
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
                             }
                         }}
-                    />
-                </Stack>
-
-                <Paper
-                    variant="outlined"
-                    sx={{
-                        mt: 3,
-                        p: 2.5,
-                        borderRadius: 3,
-                    }}
-                >
-                    <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
-                        <StatCard label="รวมที่แสดง" value={filtered.length} />
-                        <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-                        <StatCard label="วารสาร" value={filtered.filter((p) => p.type === "Journal").length} />
-                        <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-                        <StatCard
-                            label="ระดับนานาชาติ"
-                            value={filtered.filter((p) => p.level === "International").length}
-                        />
-                        <Divider flexItem orientation={isSm ? "horizontal" : "vertical"} />
-                        <StatCard label="อนุมัติแล้ว" value={filtered.filter((p) => p.status === "Approved").length} />
-                    </Stack>
-                </Paper>
-
-                {/* เมนูการดำเนินการ */}
-                <Menu
-                    anchorEl={anchor}
-                    open={Boolean(anchor)}
-                    onClose={closeMenu}
-                    PaperProps={{
-                        sx: { minWidth: 220, borderRadius: 2, p: 0.5 }
-                    }}
-                >
-                    <MenuItem onClick={handleEdit} sx={{ gap: 1.5, borderRadius: 1 }}>
-                        <EditRoundedIcon fontSize="small" />
-                        แก้ไขผลงาน
-                    </MenuItem>
-                    <MenuItem
-                        onClick={handleDeleteClick}
-                        sx={{ gap: 1.5, color: 'error.main', borderRadius: 1 }}
-                        disabled={selectedPub?.status === 'Approved'}
                     >
-                        <DeleteRoundedIcon fontSize="small" />
-                        ลบผลงาน
-                    </MenuItem>
-                </Menu>
-
-                {/* กล่องยืนยันการลบ */}
-                <Dialog
-                    open={deleteDialogOpen}
-                    onClose={cancelDelete}
-                    maxWidth="sm"
-                    fullWidth
-                    PaperProps={{ sx: { borderRadius: 3 } }}
-                >
-                    <DialogTitle sx={{ fontWeight: 900 }}>
-                        ลบผลงานตีพิมพ์
-                    </DialogTitle>
-                    <DialogContent>
-                        <DialogContentText>
-                            คุณแน่ใจหรือไม่ว่าต้องการลบ "{pubToDelete?.title}" การดำเนินการนี้ไม่สามารถยกเลิกได้
-                        </DialogContentText>
-                        {pubToDelete?.status === 'Approved' && (
-                            <Alert severity="warning" sx={{ mt: 2 }}>
-                                ไม่สามารถลบผลงานที่อนุมัติแล้วได้
-                            </Alert>
-                        )}
-                    </DialogContent>
-                    <DialogActions sx={{ p: 2 }}>
-                        <Button onClick={cancelDelete} color="inherit" sx={{ textTransform: 'none' }}>
-                            ยกเลิก
-                        </Button>
-                        <Button
-                            onClick={confirmDelete}
-                            color="error"
-                            variant="contained"
-                            disabled={deleting || pubToDelete?.status === 'Approved'}
-                            sx={{ textTransform: 'none', fontWeight: 800 }}
+                        <MenuItem 
+                            onClick={handleEdit} 
+                            sx={{ 
+                                gap: 2, 
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                    bgcolor: 'primary.main',
+                                    color: 'white',
+                                    '& .MuiSvgIcon-root': {
+                                        color: 'white',
+                                    },
+                                },
+                                transition: 'all 0.3s ease-in-out',
+                            }}
                         >
-                            {deleting ? 'กำลังลบ...' : 'ลบ'}
-                        </Button>
-                    </DialogActions>
-                </Dialog>
+                            <EditRoundedIcon fontSize="small" />
+                            <Typography fontWeight={600}>แก้ไขผลงาน</Typography>
+                        </MenuItem>
+                        <MenuItem
+                            onClick={handleDeleteClick}
+                            sx={{ 
+                                gap: 2, 
+                                borderRadius: 2,
+                                py: 1.5,
+                                color: 'error.main',
+                                '&:hover': {
+                                    bgcolor: 'error.main',
+                                    color: 'white',
+                                    '& .MuiSvgIcon-root': {
+                                        color: 'white',
+                                    },
+                                },
+                                transition: 'all 0.3s ease-in-out',
+                            }}
+                            disabled={selectedPub?.status === 'Approved'}
+                        >
+                            <DeleteRoundedIcon fontSize="small" />
+                            <Typography fontWeight={600}>ลบผลงาน</Typography>
+                        </MenuItem>
+                    </Menu>
 
-                {/* แจ้งเตือนผลลัพธ์ */}
-                <Snackbar
-                    open={snackbar.open}
-                    autoHideDuration={6000}
-                    onClose={closeSnackbar}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                >
-                    <Alert
-                        onClose={closeSnackbar}
-                        severity={snackbar.severity}
-                        variant="filled"
-                        sx={{ width: '100%' }}
+                    {/* Delete Confirmation Dialog */}
+                    <Dialog
+                        open={deleteDialogOpen}
+                        onClose={cancelDelete}
+                        maxWidth="sm"
+                        fullWidth
+                        PaperProps={{ 
+                            sx: { 
+                                borderRadius: 4,
+                                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+                            } 
+                        }}
                     >
-                        {snackbar.message}
-                    </Alert>
-                </Snackbar>
-            </Container>
+                        <DialogTitle sx={{ fontWeight: 800, pb: 2 }}>
+                            <Stack direction="row" alignItems="center" spacing={2}>
+                                <Box
+                                    sx={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 3,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'error.main',
+                                        color: 'white',
+                                    }}
+                                >
+                                    <DeleteRoundedIcon />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={800}>
+                                        ลบผลงานตีพิมพ์
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        การดำเนินการนี้ไม่สามารถยกเลิกได้
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </DialogTitle>
+                        <DialogContent sx={{ pb: 2 }}>
+                            <Typography variant="body1" sx={{ mb: 2 }}>
+                                คุณแน่ใจหรือไม่ว่าต้องการลบผลงาน
+                            </Typography>
+                            <Paper
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2,
+                                    bgcolor: 'grey.50',
+                                    border: '1px solid',
+                                    borderColor: 'grey.200',
+                                }}
+                            >
+                                <Typography fontWeight={700} color="error.main">
+                                    "{pubToDelete?.title}"
+                                </Typography>
+                            </Paper>
+                            {pubToDelete?.status === 'Approved' && (
+                                <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+                                    ไม่สามารถลบผลงานที่อนุมัติแล้วได้
+                                </Alert>
+                            )}
+                        </DialogContent>
+                        <DialogActions sx={{ p: 3, gap: 2 }}>
+                            <Button 
+                                onClick={cancelDelete} 
+                                variant="outlined"
+                                sx={{ 
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    borderRadius: 3,
+                                    px: 3,
+                                }}
+                            >
+                                ยกเลิก
+                            </Button>
+                            <Button
+                                onClick={confirmDelete}
+                                color="error"
+                                variant="contained"
+                                disabled={deleting || pubToDelete?.status === 'Approved'}
+                                sx={{ 
+                                    textTransform: 'none', 
+                                    fontWeight: 700,
+                                    borderRadius: 3,
+                                    px: 3,
+                                }}
+                            >
+                                {deleting ? 'กำลังลบ...' : 'ลบผลงาน'}
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+
+                    {/* Success/Error Snackbar */}
+                    <Snackbar
+                        open={snackbar.open}
+                        autoHideDuration={6000}
+                        onClose={closeSnackbar}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                    >
+                        <Alert
+                            onClose={closeSnackbar}
+                            severity={snackbar.severity}
+                            variant="filled"
+                            sx={{ 
+                                width: '100%',
+                                borderRadius: 3,
+                                fontWeight: 600,
+                            }}
+                        >
+                            {snackbar.message}
+                        </Alert>
+                    </Snackbar>
+                </Container>
+            </Box>
         </ProtectedRoute>
     );
 }
