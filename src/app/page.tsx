@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from 'next/dynamic';
 
 /* MUI */
 import {
@@ -32,18 +31,6 @@ import {
     Fab,
     Avatar,
     Backdrop,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    Collapse,
-    Link,
-    CircularProgress,
-    Alert,
 } from "@mui/material";
 
 /* MUI Icons */
@@ -59,279 +46,63 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LoginIcon from "@mui/icons-material/Login";
 import SchoolIcon from "@mui/icons-material/School";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import AttachFileIcon from "@mui/icons-material/AttachFile";
-import DownloadIcon from "@mui/icons-material/Download";
-import CloseIcon from "@mui/icons-material/Close";
-
-/* Types */
-import { Publication, PublicationSearchFilters } from '@/types/submission';
 
 /* -------------------------------------------------
-   API Functions
+   Mock Data + Types
 ------------------------------------------------- */
-const fetchPublications = async (filters: PublicationSearchFilters = {}, page: number = 1, pageSize: number = 12) => {
-    try {
-        const params = new URLSearchParams();
-
-        if (filters.keyword) params.append('keyword', filters.keyword);
-        if (filters.author) params.append('author', filters.author);
-        if (filters.yearFrom) params.append('yearFrom', filters.yearFrom.toString());
-        if (filters.yearTo) params.append('yearTo', filters.yearTo.toString());
-        if (filters.type && filters.type !== 'All') params.append('type', filters.type);
-        if (filters.level && filters.level !== 'All') params.append('level', filters.level);
-        if (filters.status && filters.status !== 'All') params.append('status', filters.status);
-
-        params.append('page', page.toString());
-        params.append('pageSize', pageSize.toString());
-        params.append('isPublic', 'true');
-
-        const response = await fetch(`/api/publications?${params.toString()}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch publications');
-        }
-
-        return data.data;
-    } catch (error) {
-        console.error('Error fetching publications:', error);
-        throw error;
-    }
+type Publication = {
+    id: string;
+    title: string;
+    authors: string[];
+    year: number;
+    type: "Journal" | "Conference";
+    level: "National" | "International";
 };
 
-const fetchPublicationById = async (id: string): Promise<Publication> => {
-    try {
-        const response = await fetch(`/api/publications/${id}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch publication');
-        }
-
-        return data.data;
-    } catch (error) {
-        console.error('Error fetching publication by ID:', error);
-        throw error;
-    }
+type SearchFiltersType = {
+    keyword?: string;
 };
 
-/* -------------------------------------------------
-   Publication Detail Dialog
-------------------------------------------------- */
-function PublicationDetailDialog({
-    publicationId,
-    open,
-    onClose
-}: {
-    publicationId: string | null;
-    open: boolean;
-    onClose: () => void;
-}) {
-    const [publication, setPublication] = useState<Publication | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+const mockPublications: Publication[] = [
+    {
+        id: "1",
+        title: "Deep Learning for Natural Language Processing",
+        authors: ["Alice", "Bob"],
+        year: 2023,
+        type: "Journal",
+        level: "International",
+    },
+    {
+        id: "2",
+        title: "Quantum Computing Trends",
+        authors: ["Carol"],
+        year: 2022,
+        type: "Conference",
+        level: "National",
+    },
+    {
+        id: "3",
+        title: "Blockchain in Education",
+        authors: ["Dave", "Eve"],
+        year: 2024,
+        type: "Journal",
+        level: "International",
+    },
+];
 
-    useEffect(() => {
-        if (open && publicationId) {
-            setLoading(true);
-            setError(null);
-
-            fetchPublicationById(publicationId)
-                .then(setPublication)
-                .catch(err => setError(err.message))
-                .finally(() => setLoading(false));
-        }
-    }, [open, publicationId]);
-
-    if (!open) return null;
-
-    return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-            maxWidth="md"
-            fullWidth
-            PaperProps={{
-                sx: { borderRadius: 3 }
-            }}
-        >
-            <DialogTitle sx={{ pb: 1 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                    <Box sx={{ flex: 1, pr: 2 }}>
-                        {loading ? (
-                            <Typography variant="h6">กำลังโหลด...</Typography>
-                        ) : error ? (
-                            <Typography variant="h6" color="error">เกิดข้อผิดพลาด</Typography>
-                        ) : publication ? (
-                            <>
-                                <Typography variant="h6" fontWeight={700} gutterBottom>
-                                    {publication.title}
-                                </Typography>
-                                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
-                                    <Chip size="small" label={publication.year} />
-                                    <Chip
-                                        size="small"
-                                        label={publication.type}
-                                        color={publication.type === "Journal" ? "primary" : "secondary"}
-                                        variant="outlined"
-                                    />
-                                    <Chip
-                                        size="small"
-                                        label={publication.level}
-                                        color={publication.level === "International" ? "success" : "default"}
-                                        variant="outlined"
-                                    />
-                                </Stack>
-                            </>
-                        ) : null}
-                    </Box>
-                    <IconButton onClick={onClose} size="small">
-                        <CloseIcon />
-                    </IconButton>
-                </Stack>
-            </DialogTitle>
-
-            <DialogContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : error ? (
-                    <Alert severity="error" sx={{ my: 2 }}>
-                        {error}
-                    </Alert>
-                ) : publication ? (
-                    <Stack spacing={3}>
-                        {/* Authors */}
-                        <Box>
-                            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                                ผู้แต่ง / Authors
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                {publication.authors.map(author => author.name).join(", ")}
-                            </Typography>
-                        </Box>
-
-                        {/* Publication Details */}
-                        {(publication.journal || publication.conference) && (
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                                    สถานที่ตีพิมพ์ / Publication Venue
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {publication.journal || publication.conference}
-                                    {publication.volume && ` Vol. ${publication.volume}`}
-                                    {publication.issue && ` No. ${publication.issue}`}
-                                    {publication.pages && `, pp. ${publication.pages}`}
-                                </Typography>
-                            </Box>
-                        )}
-
-                        {/* DOI */}
-                        {publication.doi && (
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                                    DOI
-                                </Typography>
-                                <Link href={`https://doi.org/${publication.doi}`} target="_blank">
-                                    {publication.doi}
-                                </Link>
-                            </Box>
-                        )}
-
-                        {/* Abstract */}
-                        {publication.abstract && (
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                                    บทคัดย่อ / Abstract
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'justify' }}>
-                                    {publication.abstract}
-                                </Typography>
-                            </Box>
-                        )}
-
-                        {/* Keywords */}
-                        {publication.keywords && publication.keywords.length > 0 && (
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                                    คำสำคัญ / Keywords
-                                </Typography>
-                                <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    {publication.keywords.map((keyword, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={keyword}
-                                            size="small"
-                                            variant="outlined"
-                                            color="primary"
-                                        />
-                                    ))}
-                                </Stack>
-                            </Box>
-                        )}
-
-                        {/* Attachments */}
-                        {publication.attachments && publication.attachments.length > 0 && (
-                            <Box>
-                                <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <AttachFileIcon fontSize="small" />
-                                    ไฟล์แนบ / Attachments
-                                </Typography>
-                                <Stack spacing={1}>
-                                    {publication.attachments.map((attachment) => (
-                                        <Paper
-                                            key={attachment.id}
-                                            variant="outlined"
-                                            sx={{ p: 2, borderRadius: 2 }}
-                                        >
-                                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                                <Box>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {attachment.name}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {attachment.type} • {(attachment.size / 1024 / 1024).toFixed(2)} MB
-                                                    </Typography>
-                                                </Box>
-                                                <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    startIcon={<DownloadIcon />}
-                                                    href={attachment.url}
-                                                    target="_blank"
-                                                >
-                                                    ดาวน์โหลด
-                                                </Button>
-                                            </Stack>
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            </Box>
-                        )}
-                    </Stack>
-                ) : null}
-            </DialogContent>
-
-            <DialogActions>
-                <Button onClick={onClose}>ปิด</Button>
-            </DialogActions>
-        </Dialog>
+function searchPublications(filters: SearchFiltersType): Publication[] {
+    const keyword = filters.keyword?.toLowerCase().trim();
+    return mockPublications.filter(
+        (p) =>
+            !keyword ||
+            p.title.toLowerCase().includes(keyword) ||
+            p.authors.some((a) => a.toLowerCase().includes(keyword))
     );
 }
 
+/* -------------------------------------------------
+   Small UI Pieces
+------------------------------------------------- */
 function StatCard({
                       icon,
                       value,
@@ -390,9 +161,9 @@ function StatCard({
 }
 
 function PublicationCard({
-    publication,
-    onView,
-}: {
+                             publication,
+                             onView,
+                         }: {
     publication: Publication;
     onView: (id: string) => void;
 }) {
@@ -407,16 +178,11 @@ function PublicationCard({
         >
             <CardContent>
                 <Stack spacing={1.2}>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                    }}>
+                    <Typography variant="subtitle1" fontWeight={700}>
                         {publication.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        {publication.authors.map(author => author.name).join(", ")}
+                        {publication.authors.join(", ")}
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                         <Chip size="small" label={publication.year} />
@@ -433,14 +199,6 @@ function PublicationCard({
                             variant="outlined"
                         />
                     </Stack>
-                    {publication.attachments && publication.attachments.length > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <AttachFileIcon fontSize="small" color="action" />
-                            <Typography variant="caption" color="text.secondary">
-                                {publication.attachments.length} ไฟล์แนบ
-                            </Typography>
-                        </Box>
-                    )}
                     <Box>
                         <Button
                             variant="contained"
@@ -448,7 +206,7 @@ function PublicationCard({
                             onClick={() => onView(publication.id)}
                             sx={{ borderRadius: 2, mt: 0.5 }}
                         >
-                            ดูรายละเอียด
+                            View
                         </Button>
                     </Box>
                 </Stack>
@@ -458,9 +216,9 @@ function PublicationCard({
 }
 
 function PublicationTable({
-    publications,
-    onView,
-}: {
+                              publications,
+                              onView,
+                          }: {
     publications: Publication[];
     onView: (id: string) => void;
 }) {
@@ -470,31 +228,21 @@ function PublicationTable({
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 700 }}>ชื่อเรื่อง</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 220 }}>ผู้แต่ง</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 80 }}>ปี</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 120 }}>ประเภท</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 140 }}>ระดับ</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 100 }}>ไฟล์แนบ</TableCell>
-                            <TableCell sx={{ fontWeight: 700, width: 120 }}>การกระทำ</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Title</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 220 }}>Authors</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 80 }}>Year</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 120 }}>Type</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 140 }}>Level</TableCell>
+                            <TableCell sx={{ fontWeight: 700, width: 100 }}>Action</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {publications.map((p) => (
                             <TableRow key={p.id} hover>
-                                <TableCell>
-                                    <Typography variant="body2" sx={{
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden',
-                                    }}>
-                                        {p.title}
-                                    </Typography>
-                                </TableCell>
+                                <TableCell>{p.title}</TableCell>
                                 <TableCell>
                                     <Typography variant="body2" color="text.secondary" noWrap>
-                                        {p.authors.map(author => author.name).join(", ")}
+                                        {p.authors.join(", ")}
                                     </Typography>
                                 </TableCell>
                                 <TableCell>{p.year}</TableCell>
@@ -515,26 +263,16 @@ function PublicationTable({
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    {p.attachments && p.attachments.length > 0 && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <AttachFileIcon fontSize="small" color="action" />
-                                            <Typography variant="caption">
-                                                {p.attachments.length}
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </TableCell>
-                                <TableCell>
                                     <Button size="small" variant="contained" onClick={() => onView(p.id)}>
-                                        ดูรายละเอียด
+                                        View
                                     </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
                         {publications.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                                    <Typography color="text.secondary">ไม่พบผลงานตีพิมพ์</Typography>
+                                <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                                    <Typography color="text.secondary">No Publications</Typography>
                                 </TableCell>
                             </TableRow>
                         )}
@@ -548,424 +286,525 @@ function PublicationTable({
 /* -------------------------------------------------
    Main Page
 ------------------------------------------------- */
-function PublicHomePage() {
+export default function PublicHomePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Add mounted state to prevent hydration mismatch
-    const [mounted, setMounted] = useState(false);
-
     const initialKeyword = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
-    const [filters, setFilters] = useState<PublicationSearchFilters>({
-        keyword: initialKeyword,
-        author: "",
-        yearFrom: undefined,
-        yearTo: undefined,
-        type: "All"
-    });
+    const [filters, setFilters] = useState<SearchFiltersType>({ keyword: initialKeyword });
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
     const [currentPage, setCurrentPage] = useState(1);
-    const [publications, setPublications] = useState<Publication[]>([]);
-    const [totalPages, setTotalPages] = useState(0);
-    const [totalCount, setTotalCount] = useState(0);
-    const [selectedPublicationId, setSelectedPublicationId] = useState<string | null>(null);
-    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [stats, setStats] = useState({
-        total: 0,
-        journal: 0,
-        conference: 0,
-        international: 0
-    });
+    const [searchResults, setSearchResults] = useState<Publication[]>(
+        searchPublications({ keyword: initialKeyword })
+    );
     const itemsPerPage = 12;
 
-    // Set mounted to true after component mounts
     useEffect(() => {
-        setMounted(true);
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        const kw = (filters.keyword ?? "").trim();
+        if (kw.length > 0) params.set("q", kw);
+        else params.delete("q");
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [filters.keyword, router, searchParams]);
 
-    // Load publications
-    const loadPublications = async (searchFilters: PublicationSearchFilters = filters, page: number = 1) => {
-        try {
-            setLoading(true);
-            setError(null);
+    useEffect(() => {
+        setSearchResults(searchPublications(filters));
+        setCurrentPage(1);
+    }, [filters]);
 
-            const data = await fetchPublications(searchFilters, page, itemsPerPage);
-
-            setPublications(data.publications);
-            setTotalPages(data.pagination.totalPages);
-            setTotalCount(data.pagination.total);
-
-            // Calculate stats from current results
-            const publicationStats = {
-                total: data.pagination.total,
-                journal: data.publications.filter((p: Publication) => p.type === 'Journal').length,
-                conference: data.publications.filter((p: Publication) => p.type === 'Conference').length,
-                international: data.publications.filter((p: Publication) => p.level === 'International').length
-            };
-            setStats(publicationStats);
-
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-            console.error('Error loading publications:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Search handler
     const handleSearch = () => {
+        setSearchResults(searchPublications(filters));
         setCurrentPage(1);
-        loadPublications(filters, 1);
     };
 
-    // Reset filters
-    const handleResetFilters = () => {
-        const resetFilters = {
-            keyword: "",
-            author: "",
-            yearFrom: undefined,
-            yearTo: undefined,
-            type: "All"
-        };
-        setFilters(resetFilters);
-        setCurrentPage(1);
-        loadPublications(resetFilters, 1);
+    const handleNavigate = (path: string) => router.push(path);
+    const handleGoBack = () => {
+        router.back();
     };
 
-    // View publication details
-    const handleViewPublication = (id: string) => {
-        setSelectedPublicationId(id);
-        setDetailDialogOpen(true);
+    const paginatedResults = searchResults.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+    const totalPages = Math.ceil(searchResults.length / itemsPerPage);
+
+    const stats = {
+        total: mockPublications.length,
+        journals: mockPublications.filter((p) => p.type === "Journal").length,
+        conferences: mockPublications.filter((p) => p.type === "Conference").length,
+        international: mockPublications.filter((p) => p.level === "International").length,
     };
-
-    // Handle page change
-    const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
-        setCurrentPage(page);
-        loadPublications(filters, page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    // Load initial data only after component is mounted
-    useEffect(() => {
-        if (mounted) {
-            loadPublications({ keyword: initialKeyword });
-        }
-    }, [mounted, initialKeyword]);
-
-    // Don't render until component is mounted to prevent hydration mismatch
-    if (!mounted) {
-        return (
-            <Box sx={{ minHeight: "100vh", bgcolor: "grey.50", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
 
     return (
-        <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
-            {/* Header */}
-            <Box sx={{ bgcolor: "white", borderBottom: 1, borderColor: "divider" }}>
-                <Container maxWidth="lg" sx={{ py: 3 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Stack direction="row" spacing={2} alignItems="center">
-                            <Avatar sx={{ bgcolor: "primary.main" }}>
-                                <SchoolIcon />
-                            </Avatar>
-                            <Box>
-                                <Typography variant="h6" fontWeight={700}>
-                                    ระบบจัดการผลงานตีพิมพ์
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    มหาวิทยาลัยสงขลานครินทร์
-                                </Typography>
-                            </Box>
-                        </Stack>
-                        <Button
-                            variant="outlined"
-                            startIcon={<LoginIcon />}
-                            onClick={() => router.push("/login")}
-                            sx={{ borderRadius: 2 }}
-                        >
-                            เข้าสู่ระบบ
-                        </Button>
-                    </Stack>
-                </Container>
+        <Box
+            sx={(t) => ({
+                position: "relative",
+                minHeight: "100vh",
+                background: `linear-gradient(135deg, ${t.palette.primary.main}08 0%, ${t.palette.secondary.main}05 50%, transparent 100%)`,
+                "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23f0f0f0" fill-opacity="0.03"%3E%3Ccircle cx="30" cy="30" r="1.5"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+                    zIndex: 0,
+                },
+            })}
+        >
+        <Container maxWidth="lg" sx={{ py: 3, position: "relative", zIndex: 1 }}> {/* ลดจาก py: 4 */}
+            {/* Header Section */}
+            <Box sx={{ textAlign: "center", mb: 4 }}> {/* ลดจาก mb: 6 */}
+                <Avatar
+                    sx={(t) => ({
+                        width: 80, // ลดจาก 100
+                        height: 80, // ลดจาก 100
+                        mx: "auto",
+                        mb: 2, // ลดจาก 3
+                        background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
+                        boxShadow: 4, // ลดจาก 6
+                    })}
+                >
+                    <SchoolIcon sx={{ fontSize: 40 }} /> {/* ลดจาก 50 */}
+                </Avatar>
+                <Typography
+                    variant="h4" // ลดจาก h3
+                    component="h1"
+                    fontWeight={700} // ลดจาก 800
+                    gutterBottom
+                    sx={(t) => ({
+                        background: `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
+                        backgroundClip: "text",
+                        WebkitBackgroundClip: "text",
+                        color: "transparent",
+                        textShadow: "0 1px 4px rgba(0,0,0,0.1)", // ลด shadow
+                        mb: 1.5, // ลดจาก 2
+                    })}
+                >
+                    ระบบจัดการผลงานตีพิมพ์
+                </Typography>
+                <Typography
+                    variant="body1" // ลดจาก h6
+                    color="text.secondary"
+                    sx={{ maxWidth: 600, mx: "auto", fontWeight: 500, lineHeight: 1.5 }}
+                >
+                    ค้นพบและสำรวจผลงานวิชาการจากมหาวิทยาลัยของเรา ค้นหาผ่านวารสาร บทความงานประชุม และผลงานวิจัยต่างๆ
+                </Typography>
             </Box>
 
-            <Container maxWidth="lg" sx={{ py: 4 }}>
-                {/* Error Alert */}
-                {error && (
-                    <Alert severity="error" sx={{ mb: 4 }} onClose={() => setError(null)}>
-                        {error}
-                    </Alert>
-                )}
-
-                {/* Statistics */}
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <StatCard
-                            icon={<AutoStoriesOutlinedIcon />}
-                            value={loading ? "..." : stats.total}
-                            label="ผลงานทั้งหมด"
-                            color="primary"
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <StatCard
-                            icon={<MenuBookIcon />}
-                            value={loading ? "..." : stats.journal}
-                            label="วารสาร"
-                            color="success"
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <StatCard
-                            icon={<EmojiEventsOutlinedIcon />}
-                            value={loading ? "..." : stats.conference}
-                            label="การประชุมวิชาการ"
-                            color="secondary"
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <StatCard
-                            icon={<TrendingUpRoundedIcon />}
-                            value={loading ? "..." : stats.international}
-                            label="ระดับนานาชาติ"
-                            color="success"
-                        />
-                    </Grid>
-                </Grid>
-
-                {/* Search Section */}
-                <Card variant="outlined" sx={{ borderRadius: 3, mb: 4 }}>
-                    <CardContent>
-                        <Stack spacing={3}>
-                            <Typography variant="h6" fontWeight={700}>
-                                ค้นหาผลงานตีพิมพ์
+            {/* Hero Card */}
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 4, // ลดจาก 5
+                    background: "rgba(255,255,255,0.9)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 6px 24px rgba(0,0,0,0.08)", // ลด shadow
+                    mb: 4, // ลดจาก 6
+                }}
+            >
+                <CardContent sx={{ p: { xs: 2.5, md: 4 } }}> {/* ลดจาก { xs: 3, md: 5 } */}
+                    <Stack spacing={3} alignItems="center" textAlign="center"> {/* ลดจาก spacing: 4 */}
+                        {/* Main Title with Icon */}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", justifyContent: "center" }}> {/* ลดจาก gap: 2 */}
+                            <MenuBookIcon sx={(t) => ({ fontSize: 32, color: t.palette.primary.main })} /> {/* ลดจาก 40 */}
+                            <Typography
+                                variant="h5" // ลดจาก h4
+                                fontWeight={600} // ลดจาก 700
+                                sx={{ color: "text.primary" }}
+                            >
+                                Publication Management System
                             </Typography>
+                        </Box>
 
-                            {/* Basic Search */}
-                            <Stack direction="row" spacing={2} alignItems="center">
-                                <TextField
-                                    fullWidth
-                                    placeholder="ค้นหาโดยชื่อเรื่อง, คำสำคัญ, หรือเนื้อหา..."
-                                    value={filters.keyword || ""}
-                                    onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <SearchRoundedIcon />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                                />
-                                <Button
-                                    variant="contained"
-                                    onClick={handleSearch}
-                                    disabled={loading}
-                                    sx={{ borderRadius: 2, px: 3 }}
-                                >
-                                    {loading ? <CircularProgress size={20} /> : "ค้นหา"}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                    onClick={() => setShowAdvanced(!showAdvanced)}
-                                    sx={{ borderRadius: 2 }}
-                                >
-                                    ตัวกรองขั้นสูง
-                                </Button>
-                            </Stack>
+                        <Typography
+                            color="text.secondary"
+                            sx={{
+                                maxWidth: 600, // ลดจาก 720
+                                fontSize: "1rem", // ลดจาก 1.1rem
+                                lineHeight: 1.6, // ลดจาก 1.7
+                                fontWeight: 400
+                            }}
+                        >
+                            Discover and explore academic publications from our university. Search through
+                            journals, conference papers, and research outputs.
+                        </Typography>
 
-                            {/* Advanced Filters */}
-                            <Collapse in={showAdvanced}>
-                                <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-                                    <Grid container spacing={3}>
-                                        <Grid item xs={12} md={6}>
-                                            <TextField
-                                                fullWidth
-                                                label="ผู้แต่ง"
-                                                placeholder="ระบุชื่อผู้แต่ง..."
-                                                value={filters.author || ""}
-                                                onChange={(e) => setFilters(prev => ({ ...prev, author: e.target.value }))}
-                                                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <FormControl fullWidth>
-                                                <InputLabel>ประเภทผลงาน</InputLabel>
-                                                <Select
-                                                    value={filters.type || "All"}
-                                                    label="ประเภทผลงาน"
-                                                    onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                                                    sx={{ borderRadius: 2 }}
-                                                >
-                                                    <MenuItem value="All">ทั้งหมด</MenuItem>
-                                                    <MenuItem value="Journal">วารสาร</MenuItem>
-                                                    <MenuItem value="Conference">การประชุมวิชาการ</MenuItem>
-                                                    <MenuItem value="Book">หนังสือ</MenuItem>
-                                                    <MenuItem value="Thesis">วิทยานิพนธ์</MenuItem>
-                                                </Select>
-                                            </FormControl>
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <TextField
-                                                fullWidth
-                                                label="ปีเริ่มต้น"
-                                                type="number"
-                                                placeholder="เช่น 2020"
-                                                value={filters.yearFrom || ""}
-                                                onChange={(e) => setFilters(prev => ({
-                                                    ...prev,
-                                                    yearFrom: e.target.value ? parseInt(e.target.value) : undefined
-                                                }))}
-                                                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <TextField
-                                                fullWidth
-                                                label="ปีสิ้นสุด"
-                                                type="number"
-                                                placeholder="เช่น 2024"
-                                                value={filters.yearTo || ""}
-                                                onChange={(e) => setFilters(prev => ({
-                                                    ...prev,
-                                                    yearTo: e.target.value ? parseInt(e.target.value) : undefined
-                                                }))}
-                                                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                                            />
-                                        </Grid>
-                                    </Grid>
-                                    <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-                                        <Button
-                                            variant="contained"
-                                            onClick={handleSearch}
-                                            disabled={loading}
-                                            sx={{ borderRadius: 2 }}
+                        {/* Enhanced Stats Grid */}
+                        <Grid container spacing={2.5} sx={{ mt: 1.5, maxWidth: 900 }}> {/* ลด spacing และ maxWidth */}
+                            <Grid item xs={6} md={3}>
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 2.5, // ลดจาก 3
+                                        borderRadius: 3, // ลดจาก 4
+                                        background: `linear-gradient(135deg, ${t.palette.primary.main}15, ${t.palette.primary.light}08)`,
+                                        border: `1px solid ${t.palette.primary.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-2px)", // ลดจาก -4px
+                                            boxShadow: `0 6px 20px ${t.palette.primary.main}25`, // ลด shadow
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1} alignItems="center" textAlign="center"> {/* ลดจาก 1.5 */}
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 42, // ลดจาก 50
+                                                height: 42, // ลดจาก 50
+                                                bgcolor: t.palette.primary.main,
+                                                boxShadow: 1, // ลดจาก 2
+                                            })}
                                         >
-                                            ค้นหาด้วยตัวกรอง
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={handleResetFilters}
-                                            disabled={loading}
-                                            sx={{ borderRadius: 2 }}
-                                        >
-                                            ล้างตัวกรอง
-                                        </Button>
+                                            <AutoStoriesOutlinedIcon sx={{ fontSize: 24 }} /> {/* ลดจาก 28 */}
+                                        </Avatar>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "primary.main" }}> {/* ลดจาก h4, 800 */}
+                                            {stats.total}
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary"> {/* ลดจาก body1 */}
+                                            ผลงานทั้งหมด
+                                        </Typography>
                                     </Stack>
                                 </Paper>
-                            </Collapse>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 2.5,
+                                        borderRadius: 3,
+                                        background: `linear-gradient(135deg, ${t.palette.success.main}15, ${t.palette.success.light}08)`,
+                                        border: `1px solid ${t.palette.success.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.success.main}25`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 42,
+                                                height: 42,
+                                                bgcolor: t.palette.success.main,
+                                                boxShadow: 1,
+                                            })}
+                                        >
+                                            <EmojiEventsOutlinedIcon sx={{ fontSize: 24 }} />
+                                        </Avatar>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "success.main" }}>
+                                            {stats.international}
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                            ระดับนานาชาติ
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 2.5,
+                                        borderRadius: 3,
+                                        background: `linear-gradient(135deg, ${t.palette.info.main}15, ${t.palette.info.light}08)`,
+                                        border: `1px solid ${t.palette.info.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.info.main}25`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 42,
+                                                height: 42,
+                                                bgcolor: t.palette.info.main,
+                                                boxShadow: 1,
+                                            })}
+                                        >
+                                            <TrendingUpRoundedIcon sx={{ fontSize: 24 }} />
+                                        </Avatar>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "info.main" }}>
+                                            {stats.journals}
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                            วารสาร
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Paper
+                                    elevation={0}
+                                    sx={(t) => ({
+                                        p: 2.5,
+                                        borderRadius: 3,
+                                        background: `linear-gradient(135deg, ${t.palette.secondary.main}15, ${t.palette.secondary.light}08)`,
+                                        border: `1px solid ${t.palette.secondary.main}20`,
+                                        transition: "all 0.3s ease-in-out",
+                                        "&:hover": {
+                                            transform: "translateY(-2px)",
+                                            boxShadow: `0 6px 20px ${t.palette.secondary.main}25`,
+                                        },
+                                    })}
+                                >
+                                    <Stack spacing={1} alignItems="center" textAlign="center">
+                                        <Avatar
+                                            sx={(t) => ({
+                                                width: 42,
+                                                height: 42,
+                                                bgcolor: t.palette.secondary.main,
+                                                boxShadow: 1,
+                                            })}
+                                        >
+                                            <GroupOutlinedIcon sx={{ fontSize: 24 }} />
+                                        </Avatar>
+                                        <Typography variant="h5" fontWeight={700} sx={{ color: "secondary.main" }}>
+                                            {stats.conferences}
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                            งานประชุม
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+
+                        {/* Enhanced Login Button */}
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={<LoginIcon />}
+                            onClick={() => handleNavigate('/login')}
+                            sx={{
+                                mt: 3, // ลดจาก 4
+                                py: 1.5, // ลดจาก 2
+                                px: 3.5, // ลดจาก 4
+                                borderRadius: 3, // ลดจาก 4
+                                fontSize: "1rem", // ลดจาก 1.1rem
+                                fontWeight: 700,
+                                textTransform: "none",
+                                background: (t) => `linear-gradient(45deg, ${t.palette.primary.main} 30%, ${t.palette.primary.dark} 90%)`,
+                                boxShadow: "0 4px 16px rgba(25, 118, 210, 0.35)", // ลด shadow
+                                "&:hover": {
+                                    transform: "translateY(-2px)", // ลดจาก -3px
+                                    boxShadow: "0 6px 24px rgba(25, 118, 210, 0.5)", // ลด shadow
+                                    background: (t) => `linear-gradient(45deg, ${t.palette.primary.dark} 30%, ${t.palette.primary.main} 90%)`,
+                                },
+                                transition: "all 0.3s ease-in-out",
+
+                            }}
+                        >
+                            เข้าสู่ระบบเพื่อจัดการผลงาน
+                        </Button>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Enhanced Search & Controls */}
+            <Card
+                variant="outlined"
+                sx={{
+                    mt: 4,
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.9)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                }}
+            >
+                <CardContent sx={{ p: 3 }}>
+                    <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems="center">
+                        <TextField
+                            fullWidth
+                            placeholder="ค้นหาผลงานตีพิมพ์..."
+                            value={filters.keyword ?? ""}
+                            onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSearch();
+                            }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    borderRadius: 3,
+                                    backgroundColor: "rgba(0,0,0,0.02)",
+                                    "&:hover": {
+                                        backgroundColor: "rgba(0,0,0,0.04)",
+                                    },
+                                    "&.Mui-focused": {
+                                        backgroundColor: "rgba(255,255,255,1)",
+                                        boxShadow: "0 0 0 3px rgba(25, 118, 210, 0.1)",
+                                    },
+                                },
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchRoundedIcon
+                                            fontSize="small"
+                                            sx={(t) => ({ color: t.palette.primary.main })}
+                                        />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                        <Stack direction="row" gap={1} alignItems="center" flexShrink={0}>
+                            <Button
+                                variant="contained"
+                                onClick={handleSearch}
+                                sx={{
+                                    borderRadius: 3,
+                                    px: 3,
+                                    fontWeight: 600,
+                                    "&:hover": {
+                                        transform: "translateY(-1px)",
+                                        boxShadow: 4,
+                                    },
+                                    transition: "all 0.2s ease-in-out",
+                                }}
+                            >
+                                ค้นหา
+                            </Button>
+                            <Tooltip title={showAdvanced ? "ซ่อนตัวกรองขั้นสูง" : "แสดงตัวกรองขั้นสูง"}>
+                                <IconButton
+                                    onClick={() => setShowAdvanced((s) => !s)}
+                                    sx={{
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        borderRadius: 2,
+                                        "&:hover": {
+                                            backgroundColor: "primary.main",
+                                            color: "white",
+                                            borderColor: "primary.main",
+                                        },
+                                        transition: "all 0.2s ease-in-out",
+                                    }}
+                                >
+                                    <TuneRoundedIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <ToggleButtonGroup
+                                exclusive
+                                size="small"
+                                value={viewMode}
+                                onChange={(_, v) => v && setViewMode(v)}
+                                sx={{
+                                    ml: { md: 1 },
+                                    borderRadius: 2,
+                                    "& .MuiToggleButton-root": {
+                                        px: 2,
+                                        borderRadius: 2,
+                                        "&.Mui-selected": {
+                                            backgroundColor: "primary.main",
+                                            color: "white",
+                                        },
+                                    },
+                                }}
+                            >
+                                <ToggleButton value="cards" aria-label="มุมมองการ์ด">
+                                    <GridViewRoundedIcon fontSize="small" />
+                                </ToggleButton>
+                                <ToggleButton value="table" aria-label="มุมมองตาราง">
+                                    <TableRowsRoundedIcon fontSize="small" />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
                         </Stack>
+                    </Stack>
+
+                    {/* Advanced placeholder */}
+                    {showAdvanced && (
+                        <Box sx={{ mt: 3 }}>
+                            <Divider sx={{ mb: 3 }} />
+                            <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                                🚧 ตัวกรองขั้นสูง — สามารถเพิ่มการกรองตามปี ประเภท ระดับ คณะ ฯลฯ
+                            </Typography>
+                        </Box>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Results header */}
+            <Stack
+                direction={{ xs: "column", md: "row" }}
+                alignItems={{ xs: "flex-start", md: "center" }}
+                justifyContent="space-between"
+                sx={{ mt: 3, mb: 1 }}
+                gap={1.5}
+            >
+                <Box>
+                    <Typography variant="h6" fontWeight={700}>
+                        {searchResults.length} Publications Found
+                    </Typography>
+                    {((filters.keyword ?? "").trim().length > 0) && (
+                        <Typography variant="body2" color="text.secondary">
+                            Showing results for: <b>{filters.keyword}</b>
+                        </Typography>
+                    )}
+                </Box>
+            </Stack>
+
+            {/* Results */}
+            {paginatedResults.length > 0 ? (
+                <>
+                    {viewMode === "cards" ? (
+                        <Grid container spacing={2}>
+                            {paginatedResults.map((p) => (
+                                <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                                    <PublicationCard
+                                        publication={p}
+                                        onView={(id) => handleNavigate(`/publication/${id}`)}
+                                    />
+                                </Grid>
+                            ))}
+                        </Grid>
+                    ) : (
+                        <PublicationTable
+                            publications={paginatedResults}
+                            onView={(id) => handleNavigate(`/publication/${id}`)}
+                        />
+                    )}
+
+                    {totalPages > 1 && (
+                        <Stack alignItems="center" sx={{ mt: 3 }}>
+                            <Pagination
+                                count={totalPages}
+                                page={currentPage}
+                                onChange={(_, p) => setCurrentPage(p)}
+                                shape="rounded"
+                                color="primary"
+                            />
+                        </Stack>
+                    )}
+                </>
+            ) : (
+                <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent sx={{ py: 8, textAlign: "center" }}>
+                        <AutoStoriesOutlinedIcon
+                            sx={{ fontSize: 48, color: "text.disabled", mb: 1.5 }}
+                        />
+                        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                            No Publications Found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Try adjusting your search criteria or browse all publications.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setFilters({ keyword: "" })}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Clear Filters
+                        </Button>
                     </CardContent>
                 </Card>
-
-                {/* Results Header */}
-                <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ mb: 3 }}
-                >
-                    <Typography variant="h6" fontWeight={600}>
-                        ผลการค้นหา ({loading ? "..." : totalCount} รายการ)
-                    </Typography>
-                    <ToggleButtonGroup
-                        value={viewMode}
-                        exclusive
-                        onChange={(_, newMode) => newMode && setViewMode(newMode)}
-                        size="small"
-                    >
-                        <ToggleButton value="cards">
-                            <GridViewRoundedIcon />
-                        </ToggleButton>
-                        <ToggleButton value="table">
-                            <TableRowsRoundedIcon />
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                </Stack>
-
-                {/* Loading */}
-                {loading && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                        <CircularProgress size={40} />
-                    </Box>
-                )}
-
-                {/* Results */}
-                {!loading && !error && (
-                    <>
-                        {viewMode === "cards" ? (
-                            <Grid container spacing={3}>
-                                {publications.map((publication) => (
-                                    <Grid item xs={12} sm={6} md={4} key={publication.id}>
-                                        <PublicationCard
-                                            publication={publication}
-                                            onView={handleViewPublication}
-                                        />
-                                    </Grid>
-                                ))}
-                            </Grid>
-                        ) : (
-                            <PublicationTable
-                                publications={publications}
-                                onView={handleViewPublication}
-                            />
-                        )}
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <Stack alignItems="center" sx={{ mt: 4 }}>
-                                <Pagination
-                                    count={totalPages}
-                                    page={currentPage}
-                                    onChange={handlePageChange}
-                                    color="primary"
-                                    size="large"
-                                />
-                            </Stack>
-                        )}
-
-                        {/* No Results */}
-                        {publications.length === 0 && (
-                            <Paper sx={{ p: 6, textAlign: "center", borderRadius: 3 }}>
-                                <AutoStoriesOutlinedIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-                                <Typography variant="h6" color="text.secondary" gutterBottom>
-                                    ไม่พบผลงานตีพิมพ์
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    ลองใช้คำค้นหาอื่นหรือปรับเปลี่ยนตัวกรอง
-                                </Typography>
-                            </Paper>
-                        )}
-                    </>
-                )}
-            </Container>
-
-            {/* Publication Detail Dialog */}
-            <PublicationDetailDialog
-                publicationId={selectedPublicationId}
-                open={detailDialogOpen}
-                onClose={() => {
-                    setDetailDialogOpen(false);
-                    setSelectedPublicationId(null);
-                }}
-            />
+            )}
+        </Container>
         </Box>
     );
 }
-
-// Export as dynamic component to prevent SSR issues
-export default dynamic(() => Promise.resolve(PublicHomePage), {
-    ssr: false,
-    loading: () => (
-        <Box sx={{ minHeight: "100vh", bgcolor: "grey.50", display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <CircularProgress />
-        </Box>
-    )
-});
