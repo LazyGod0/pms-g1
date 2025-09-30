@@ -22,13 +22,21 @@ import AttachmentsStep from "@/app/component/steps/AttachmentsStep";
 import SidebarSummary from "@/app/component/publications/SidebarSummary";
 
 import { SubmissionForm } from "@/types/submission";
-import { auth, db } from "@/configs/firebase-config"; // <-- ปรับให้ตรงโปรเจกต์คุณถ้าพาธต่าง
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/configs/firebase-config";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  addDoc,
+  collection,
+} from "firebase/firestore";
 import { getNextTempId } from "@/libs/firestore-utils";
+
+// ======= ใช้ UID ตายตัวตามที่กำหนด =======
+const FIXED_UID = "YZUhXqGmf1U24zmdxYvV";
 
 const steps = ["Basics", "Authors", "Identifiers", "Attachments"];
 
-// ---------- initial form (เพิ่ม url/references ใน identifiers) ----------
 const initialForm: SubmissionForm = {
   basics: { title: "", type: "", level: "", year: "", abstract: "", keywords: [] },
   authors: [],
@@ -42,7 +50,6 @@ type SnackState = {
   sev: "success" | "error" | "warning" | "info";
 };
 
-// ---------- types สำหรับ error (เพิ่ม abstract, ตัด keywords ออก) ----------
 type BasicsErrors = Partial<{
   title: string;
   type: string;
@@ -52,7 +59,25 @@ type BasicsErrors = Partial<{
 }>;
 type AuthorRowError = { name?: string; affiliation?: string; email?: string };
 type AuthorsErrors = Record<number, AuthorRowError>;
-// ------------------------------------------------
+
+// ======= เขียน Log ที่ users/{uid}/logs =======
+async function writeUserLog(
+  userId: string,
+  payload: {
+    submissionId: string;
+    action: "saved_draft" | "submitted" | "created" | "updated" | "deleted";
+    title?: string;
+    type?: string;
+    status?: string;
+  }
+) {
+  const logsCol = collection(db, "users", userId, "logs"); // collection path = 3 segments (คี่) ✔️
+  await addDoc(logsCol, {
+    userId,
+    ...payload,
+    timestamp: serverTimestamp(),
+  });
+}
 
 export default function LecNewSubmitPage() {
   const [activeStep, setActiveStep] = React.useState(0);
@@ -63,12 +88,10 @@ export default function LecNewSubmitPage() {
     sev: "success",
   });
 
-  // ---------- state เก็บ error ----------
   const [errors, setErrors] = React.useState<{
     basics?: BasicsErrors;
     authors?: AuthorsErrors;
   }>({});
-  // --------------------------------------
 
   // setters
   const setBasics = (next: SubmissionForm["basics"]) =>
@@ -80,7 +103,7 @@ export default function LecNewSubmitPage() {
   const setAttachments = (next: SubmissionForm["attachments"]) =>
     setForm((p) => ({ ...p, attachments: next }));
 
-  // ---------- ตรวจสเต็ป & เก็บ error (บังคับ abstract, ไม่บังคับ keywords) ----------
+  // validate per step
   function validateStepAndCollect(step: number, f: SubmissionForm): boolean {
     const nextErrors: typeof errors = {};
 
@@ -110,7 +133,6 @@ export default function LecNewSubmitPage() {
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
-  // ----------------------------------------------------------------------
 
   const onNext = () => {
     if (!validateStepAndCollect(activeStep, form)) {
@@ -122,19 +144,26 @@ export default function LecNewSubmitPage() {
 
   const onBack = () => setActiveStep((s) => Math.max(0, s - 1));
 
+  // ======= Save Draft -> สร้าง submission + เขียน users/{uid}/logs =======
   const handleSaveDraft = async () => {
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Please login");
+      const newId = await getNextTempId(FIXED_UID); // e.g., temp0001
+      const colRef = collection(db, "users", FIXED_UID, "submissions"); // collection path (คี่) ✔️
+      const docRef = doc(colRef, newId); // document path (คู่) ✔️
 
-      const newId = await getNextTempId(user.uid);
-      const ref = doc(db, "users", user.uid, "submissions", newId);
-
-      await setDoc(ref, {
+      await setDoc(docRef, {
         ...form,
         status: "draft",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+      });
+
+      await writeUserLog(FIXED_UID, {
+        submissionId: newId,
+        action: "saved_draft",
+        title: form.basics.title,
+        type: form.basics.type,
+        status: "draft",
       });
 
       setSnack({ open: true, msg: `Draft ถูกบันทึกเป็น ${newId}`, sev: "success" });
@@ -144,7 +173,7 @@ export default function LecNewSubmitPage() {
     }
   };
 
-  // ตรวจครบสเต็ปที่บังคับก่อนส่ง (Basics + Authors)
+  // ======= Submit -> สร้าง submission + เขียน users/{uid}/logs =======
   const handleSubmit = async () => {
     const ok0 = validateStepAndCollect(0, form);
     const ok1 = validateStepAndCollect(1, form);
@@ -154,21 +183,27 @@ export default function LecNewSubmitPage() {
     }
 
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Please login");
+      const newId = await getNextTempId(FIXED_UID);
+      const colRef = collection(db, "users", FIXED_UID, "submissions");
+      const docRef = doc(colRef, newId);
 
-      const newId = await getNextTempId(user.uid);
-      const ref = doc(db, "users", user.uid, "submissions", newId);
-
-      await setDoc(ref, {
+      await setDoc(docRef, {
         ...form,
         status: "submitted",
         createdAt: serverTimestamp(),
         submittedAt: serverTimestamp(),
       });
 
+      await writeUserLog(FIXED_UID, {
+        submissionId: newId,
+        action: "submitted",
+        title: form.basics.title,
+        type: form.basics.type,
+        status: "submitted",
+      });
+
       setSnack({ open: true, msg: `ส่งสำเร็จเป็นเอกสาร ${newId}`, sev: "success" });
-      // ต้องการรีเซ็ตหลังส่งหรือไม่ สามารถปลดคอมเมนต์ด้านล่าง
+      // ถ้าต้องการรีเซ็ต:
       // setForm(initialForm); setActiveStep(0); setErrors({});
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -184,7 +219,7 @@ export default function LecNewSubmitPage() {
 
       <Grid container spacing={2}>
         {/* ซ้าย: ฟอร์ม + stepper */}
-        <Grid size={{ xs:12, md:8 }}>
+        <Grid size={{ xs:12,md:8 }}>
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
             <Stepper activeStep={activeStep} alternativeLabel>
               {steps.map((label) => (
@@ -196,38 +231,20 @@ export default function LecNewSubmitPage() {
 
             <Box sx={{ mt: 3 }}>
               {activeStep === 0 && (
-                <BasicsStep
-                  value={form.basics}
-                  onChange={setBasics}
-                  errors={errors.basics}
-                />
+                <BasicsStep value={form.basics} onChange={setBasics} errors={errors.basics} />
               )}
               {activeStep === 1 && (
-                <AuthorsStep
-                  value={form.authors}
-                  onChange={setAuthors}
-                  errors={errors.authors}
-                />
+                <AuthorsStep value={form.authors} onChange={setAuthors} errors={errors.authors} />
               )}
               {activeStep === 2 && (
-                <IdentifiersStep
-                  value={form.identifiers}
-                  onChange={setIdentifiers}
-                />
+                <IdentifiersStep value={form.identifiers} onChange={setIdentifiers} />
               )}
               {activeStep === 3 && (
-                <AttachmentsStep
-                  value={form.attachments}
-                  onChange={setAttachments}
-                />
+                <AttachmentsStep value={form.attachments} onChange={setAttachments} />
               )}
             </Box>
 
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ mt: 3, justifyContent: "space-between" }}
-            >
+            <Stack direction="row" spacing={1.5} sx={{ mt: 3, justifyContent: "space-between" }}>
               <Button variant="outlined" onClick={onBack} disabled={activeStep === 0}>
                 Back
               </Button>
@@ -250,7 +267,7 @@ export default function LecNewSubmitPage() {
         </Grid>
 
         {/* ขวา: Progress + Summary */}
-        <Grid size={{ xs:12, md:4 }}>
+        <Grid size={{ xs:12,md:4 }}>
           <SidebarSummary form={form} />
         </Grid>
       </Grid>
@@ -261,10 +278,7 @@ export default function LecNewSubmitPage() {
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert
-          severity={snack.sev}
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        >
+        <Alert severity={snack.sev} onClose={() => setSnack((s) => ({ ...s, open: false }))}>
           {snack.msg}
         </Alert>
       </Snackbar>

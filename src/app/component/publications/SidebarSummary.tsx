@@ -1,4 +1,3 @@
-// src/app/component/publications/SidebarSummary.tsx
 "use client";
 import * as React from "react";
 import {
@@ -32,42 +31,28 @@ export default function SidebarSummary({ form }: Props) {
   const authorsCount = form.authors?.length ?? 0;
   const keywordsCount = form.basics?.keywords?.length ?? 0;
 
-  // ✅ แทนที่ refId ด้วย url และ references
-  const refsCount =
-    Number(Boolean(form.identifiers?.doi)) +
-    Number(Boolean(form.identifiers?.url)) +
-    (form.identifiers?.references?.length ?? 0);
+  // ✅ นับเฉพาะ references ที่เพิ่มในลิสต์เท่านั้น (ไม่นับ DOI/URL)
+  const refsCount = form.identifiers?.references?.length ?? 0;
 
   const filesCount = form.attachments?.files?.length ?? 0;
 
   return (
     <Stack spacing={2}>
-      {/* Progress */}
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent>
           <Typography fontWeight={700} mb={1}>Progress</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <Typography variant="body2" color="text.secondary">Completeness</Typography>
             <Box sx={{ flex: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={percent}
-                aria-label="completeness"
-                sx={{ height: 10, borderRadius: 2 }}
-              />
+              <LinearProgress variant="determinate" value={percent} sx={{ height: 10, borderRadius: 2 }} />
             </Box>
             <Typography variant="body2" color="text.secondary">{percent}%</Typography>
           </Box>
 
-          {/* รายการ checklist */}
           <Stack spacing={0.5} mt={1}>
             {checks.map(([label, ok]) => (
               <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                {ok ? (
-                  <CheckCircleIcon fontSize="small" color="success" />
-                ) : (
-                  <RadioButtonUncheckedIcon fontSize="small" color="disabled" />
-                )}
+                {ok ? <CheckCircleIcon fontSize="small" color="success" /> : <RadioButtonUncheckedIcon fontSize="small" color="disabled" />}
                 <Typography variant="body2">{label}</Typography>
               </Box>
             ))}
@@ -75,7 +60,6 @@ export default function SidebarSummary({ form }: Props) {
         </CardContent>
       </Card>
 
-      {/* Summary */}
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
         <CardContent>
           <Typography fontWeight={700} mb={1}>Summary</Typography>

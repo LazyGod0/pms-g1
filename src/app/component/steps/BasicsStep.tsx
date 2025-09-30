@@ -59,7 +59,7 @@ export default function BasicsStep({ value, onChange, errors }: Props) {
             helperText={errors?.year}
             select
           >
-            {Array.from({ length: 50 }, (_, i) => 2030 - i).map(y => (
+            {Array.from({ length: 50 }, (_, i) => 2026 - i).map(y => (
               <MenuItem key={y} value={String(y)}>{y}</MenuItem>
             ))}
           </TextField>
