@@ -26,11 +26,21 @@ import {
   InputAdornment,
   Tooltip,
   Skeleton,
+  Avatar,
+  Divider,
+  Container,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   Clear,
   Description as DescriptionIcon,
+  PendingActions as PendingIcon,
+  Error as ErrorIcon,
+  CheckCircle as CheckCircleIcon,
+  Assessment as AssessmentIcon,
+  Visibility as VisibilityIcon,
+  FilterList as FilterIcon,
+  Article as ArticleIcon,
 } from "@mui/icons-material";
 
 // Firestore & Storage
@@ -41,6 +51,31 @@ import { ref, getDownloadURL } from "firebase/storage";
 // Next.js Router
 import { useRouter } from "next/navigation";
 
+// Types
+interface Author {
+  name: string;
+  role: string;
+}
+
+interface Publication {
+  id: string;
+  uid: string;
+  sid: string;
+  title: string;
+  abstract: string;
+  year: string;
+  type: string;
+  level: string;
+  keywords: string[];
+  authors: Author[];
+  submitter: string;
+  files: string[];
+  doi: string;
+  references: string[];
+  submitted: string;
+  status: string;
+}
+
 const StaffDashboard = () => {
   const router = useRouter();
 
@@ -50,7 +85,7 @@ const StaffDashboard = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [mounted, setMounted] = useState(false);
 
-  const [publications, setPublications] = useState<any[]>([]);
+  const [publications, setPublications] = useState<Publication[]>([]);
   const [loading, setLoading] = useState(true);
 
   // โหลดข้อมูลจาก Firestore
@@ -60,7 +95,7 @@ const StaffDashboard = () => {
     const fetchData = async () => {
       try {
         const querySnapshot = await getDocs(collectionGroup(db, "submissions"));
-        const pubs: any[] = [];
+        const pubs: Publication[] = [];
 
         querySnapshot.forEach((doc) => {
           const data = doc.data();
@@ -137,8 +172,9 @@ const StaffDashboard = () => {
       return matchesSearch && matchesType && matchesTab && matchesLevel;
     });
   }, [searchTerm, selectedType, selectedLevel, activeTab, publications]);
+
   const dynamicStats = useMemo(() => {
-    const getStatus = (p: any) => p.status?.toLowerCase() || "draft";
+    const getStatus = (p: Publication) => p.status?.toLowerCase() || "draft";
     const pendingReview = publications.filter(
       (p) => getStatus(p) === "submitted"
     ).length;
@@ -161,212 +197,476 @@ const StaffDashboard = () => {
     setSelectedLevel("All Levels");
   };
 
+  // Define stats with enhanced styling
+  const statsConfig = [
+    {
+      label: "Pending Review",
+      value: dynamicStats.pendingReview,
+      icon: <PendingIcon />,
+      gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      color: "#667eea",
+    },
+    {
+      label: "Needs Fix",
+      value: dynamicStats.needsFix,
+      icon: <ErrorIcon />,
+      gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      color: "#f5576c",
+    },
+    {
+      label: "Approved",
+      value: dynamicStats.approved,
+      icon: <CheckCircleIcon />,
+      gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+      color: "#00f2fe",
+    },
+    {
+      label: "Total Reviews",
+      value: dynamicStats.totalReviews,
+      icon: <AssessmentIcon />,
+      gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      color: "#43e97b",
+    },
+  ];
+
   if (!mounted) return null;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h4" sx={{ fontWeight: "bold", mb: 2 }}>
-        Review Queue
-      </Typography>
-
-      {/* Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {[
-          { label: "Pending Review", value: dynamicStats.pendingReview },
-          { label: "Needs Fix", value: dynamicStats.needsFix },
-          { label: "Approved", value: dynamicStats.approved },
-          { label: "Total Reviews", value: dynamicStats.totalReviews },
-        ].map((stat, i) => (
-          <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card
-              sx={{ cursor: "pointer", "&:hover": { boxShadow: 4 } }}
-              onClick={() => setActiveTab(i)}
-            >
-              <CardContent>
-                {loading ? (
-                  <>
-                    <Skeleton width="60%" />
-                    <Skeleton width="40%" height={40} />
-                  </>
-                ) : (
-                  <>
-                    <Typography variant="body2" color="text.secondary">
-                      {stat.label}
-                    </Typography>
-                    <Typography variant="h3">{stat.value}</Typography>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Search & Filters */}
-      <Paper sx={{ mb: 3 }}>
+    <Container maxWidth="xl">
+      <Box sx={{ py: 4 }}>
+        {/* Header Section */}
         <Box
           sx={{
-            p: 2,
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: 2,
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            borderRadius: 3,
+            p: 4,
+            mb: 4,
+            color: "white",
+            position: "relative",
+            overflow: "hidden",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "200px",
+              height: "200px",
+              background: "rgba(255,255,255,0.1)",
+              borderRadius: "50%",
+              transform: "translate(50%, -50%)",
+            },
           }}
         >
-          <TextField
-            placeholder="Search by title or submitter..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ flexGrow: 1 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Type</InputLabel>
-            <Select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-            >
-              <MenuItem value="All Types">All Types</MenuItem>
-              <MenuItem value="Journal">Journal</MenuItem>
-              <MenuItem value="Conference">Conference</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Level</InputLabel>
-            <Select
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value)}
-            >
-              <MenuItem value="All Levels">All Levels</MenuItem>
-              <MenuItem value="National">National</MenuItem>
-              <MenuItem value="International">International</MenuItem>
-            </Select>
-          </FormControl>
-          <Button variant="text" startIcon={<Clear />} onClick={clearFilters}>
-            Clear Filters
-          </Button>
+          <Box sx={{ position: "relative", zIndex: 1 }}>
+            <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
+              📋 Review Queue
+            </Typography>
+            <Typography variant="h6" sx={{ opacity: 0.9 }}>
+              Manage and review publication submissions
+            </Typography>
+          </Box>
         </Box>
 
-        {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onChange={(e, val) => setActiveTab(val)}
-          sx={{ px: 2 }}
-        >
-          <Tab label={`Pending Review (${dynamicStats.pendingReview})`} />
-          <Tab label={`Needs Fix (${dynamicStats.needsFix})`} />
-          <Tab label={`Completed (${dynamicStats.approved})`} />
-          <Tab label={`Total Reviews (${dynamicStats.totalReviews})`} />
-        </Tabs>
-
-        {/* Table */}
-        <TableContainer sx={{ overflowX: "auto" }}>
-          {loading ? (
-            <Box sx={{ p: 4 }}>
-              {[...Array(5)].map((_, i) => (
-                <Skeleton
-                  key={i}
-                  variant="rectangular"
-                  height={40}
-                  sx={{ mb: 1, borderRadius: 1 }}
-                />
-              ))}
-            </Box>
-          ) : filteredPublications.length === 0 ? (
-            <Box sx={{ p: 6, textAlign: "center" }}>
-              <SearchIcon sx={{ fontSize: 64, color: "grey.300" }} />
-              <Typography>No publications found</Typography>
-            </Box>
-          ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Authors</TableCell>
-                  <TableCell>Type/Level</TableCell>
-                  <TableCell>Year</TableCell>
-                  <TableCell>Submitted</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Files</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredPublications.map((pub, pubIdx) => (
-                  <TableRow key={pubIdx}>
-                    <TableCell>
-                      <Typography fontWeight={600}>{pub.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {pub.abstract}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {pub.authors.map((a: any, i: number) => (
-                        <Typography key={i} variant="body2">
-                          {a.name}{" "}
-                          <Typography component="span" variant="caption">
-                            ({a.role})
-                          </Typography>
+        {/* Enhanced Stats Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {statsConfig.map((stat, i) => (
+            <Grid key={i} xs={12} sm={6} md={3}>
+              <Card
+                sx={{
+                  cursor: "pointer",
+                  background: stat.gradient,
+                  color: "white",
+                  border: "none",
+                  borderRadius: 3,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-8px)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+                  },
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+                onClick={() => setActiveTab(i)}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  {loading ? (
+                    <>
+                      <Skeleton width="60%" sx={{ bgcolor: "rgba(255,255,255,0.3)" }} />
+                      <Skeleton width="40%" height={40} sx={{ bgcolor: "rgba(255,255,255,0.3)" }} />
+                    </>
+                  ) : (
+                    <>
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: "rgba(255,255,255,0.2)",
+                            color: "white",
+                            mr: 2,
+                          }}
+                        >
+                          {stat.icon}
+                        </Avatar>
+                        <Typography variant="h6" sx={{ fontWeight: "600" }}>
+                          {stat.label}
                         </Typography>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      {pub.type} ({pub.level})
-                    </TableCell>
-                    <TableCell>{pub.year}</TableCell>
-                    <TableCell>{pub.submitted}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={pub.status}
-                        size="small"
-                        color={
-                          pub.status?.toLowerCase() === "approved"
-                            ? "success"
-                            : pub.status?.toLowerCase() === "rejected"
-                            ? "error"
-                            : pub.status?.toLowerCase() === "submitted"
-                            ? "warning"
-                            : "default"
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {pub.files.map((f: string, i: number) => (
-                        <Tooltip key={i} title={f}>
-                          <DescriptionIcon
-                            sx={{
-                              mr: 1,
-                              color: "primary.main",
-                              cursor: "pointer",
-                            }}
-                            onClick={() => handleOpenFile(f)}
-                          />
-                        </Tooltip>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        disabled={pub.status?.toLowerCase() !== "submitted"}
-                        onClick={() => handleReview(pub.uid, pub.sid)}
-                      >
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                      </Box>
+                      <Typography variant="h2" sx={{ fontWeight: "bold" }}>
+                        {stat.value}
+                      </Typography>
+                    </>
+                  )}
+                </CardContent>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: -20,
+                    right: -20,
+                    width: 80,
+                    height: 80,
+                    background: "rgba(255,255,255,0.1)",
+                    borderRadius: "50%",
+                  }}
+                />
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Enhanced Search & Filters */}
+        <Card
+          sx={{
+            mb: 4,
+            borderRadius: 3,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+            overflow: "hidden",
+          }}
+        >
+          <Paper
+            sx={{
+              background: "linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%)",
+              p: 3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+              <FilterIcon sx={{ mr: 2, color: "primary.main" }} />
+              <Typography variant="h6" sx={{ fontWeight: "600" }}>
+                Search & Filters
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                gap: 2,
+                alignItems: "stretch",
+              }}
+            >
+              <TextField
+                placeholder="Search by title or submitter..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={{
+                  flexGrow: 1,
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    backgroundColor: "white",
+                  },
+                }}
+              />
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>Publication Type</InputLabel>
+                <Select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  sx={{
+                    borderRadius: 2,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <MenuItem value="All Types">🔍 All Types</MenuItem>
+                  <MenuItem value="Journal">📰 Journal</MenuItem>
+                  <MenuItem value="Conference">🎯 Conference</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>Level</InputLabel>
+                <Select
+                  value={selectedLevel}
+                  onChange={(e) => setSelectedLevel(e.target.value)}
+                  sx={{
+                    borderRadius: 2,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <MenuItem value="All Levels">🌐 All Levels</MenuItem>
+                  <MenuItem value="National">🏠 National</MenuItem>
+                  <MenuItem value="International">🌍 International</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                variant="outlined"
+                startIcon={<Clear />}
+                onClick={clearFilters}
+                sx={{
+                  borderRadius: 2,
+                  backgroundColor: "white",
+                  "&:hover": {
+                    backgroundColor: "primary.main",
+                    color: "white",
+                  },
+                }}
+              >
+                Clear
+              </Button>
+            </Box>
+          </Paper>
+
+          <Divider />
+
+          {/* Enhanced Tabs */}
+          <Tabs
+            value={activeTab}
+            onChange={(e, val) => setActiveTab(val)}
+            sx={{
+              px: 3,
+              "& .MuiTab-root": {
+                fontWeight: "600",
+                textTransform: "none",
+                fontSize: "1rem",
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab
+              label={`⏳ Pending Review (${dynamicStats.pendingReview})`}
+              sx={{ color: "#667eea" }}
+            />
+            <Tab
+              label={`🔄 Needs Fix (${dynamicStats.needsFix})`}
+              sx={{ color: "#f5576c" }}
+            />
+            <Tab
+              label={`✅ Completed (${dynamicStats.approved})`}
+              sx={{ color: "#00f2fe" }}
+            />
+            <Tab
+              label={`📊 All Reviews (${dynamicStats.totalReviews})`}
+              sx={{ color: "#43e97b" }}
+            />
+          </Tabs>
+
+          <Divider />
+
+          {/* Enhanced Table */}
+          <TableContainer sx={{ overflowX: "auto" }}>
+            {loading ? (
+              <Box sx={{ p: 4 }}>
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    variant="rectangular"
+                    height={60}
+                    sx={{ mb: 2, borderRadius: 2 }}
+                  />
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </TableContainer>
-      </Paper>
-    </Box>
+              </Box>
+            ) : filteredPublications.length === 0 ? (
+              <Box sx={{ p: 8, textAlign: "center" }}>
+                <ArticleIcon sx={{ fontSize: 80, color: "grey.300", mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No publications found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try adjusting your search criteria
+                </Typography>
+              </Box>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      backgroundColor: "#f8f9fa",
+                      "& .MuiTableCell-head": {
+                        fontWeight: "bold",
+                        color: "text.primary",
+                      },
+                    }}
+                  >
+                    <TableCell>📄 Title</TableCell>
+                    <TableCell>👥 Authors</TableCell>
+                    <TableCell>🏷️ Type/Level</TableCell>
+                    <TableCell>📅 Year</TableCell>
+                    <TableCell>⏰ Submitted</TableCell>
+                    <TableCell>🔖 Status</TableCell>
+                    <TableCell>📎 Files</TableCell>
+                    <TableCell>⚡ Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredPublications.map((pub, pubIdx) => (
+                    <TableRow
+                      key={pubIdx}
+                      sx={{
+                        "&:hover": {
+                          backgroundColor: "rgba(103, 126, 234, 0.04)",
+                        },
+                        borderBottom: "1px solid #f0f0f0",
+                      }}
+                    >
+                      <TableCell sx={{ maxWidth: 300 }}>
+                        <Typography fontWeight={600} sx={{ mb: 1 }}>
+                          {pub.title}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {pub.abstract}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {pub.authors.slice(0, 2).map((a: Author, i: number) => (
+                          <Box key={i} sx={{ mb: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
+                            <Typography variant="body2" component="span">
+                              {a.name}
+                            </Typography>
+                            <Chip
+                              label={a.role}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: "0.7rem", height: 20 }}
+                            />
+                          </Box>
+                        ))}
+                        {pub.authors.length > 2 && (
+                          <Typography variant="caption" color="text.secondary">
+                            +{pub.authors.length - 2} more
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Chip
+                            label={pub.type}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mb: 1, display: "block", width: "fit-content" }}
+                          />
+                          <Chip
+                            label={pub.level}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ display: "block", width: "fit-content" }}
+                          />
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {pub.year}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{pub.submitted}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={pub.status}
+                          size="small"
+                          color={
+                            pub.status?.toLowerCase() === "approved"
+                              ? "success"
+                              : pub.status?.toLowerCase() === "rejected"
+                              ? "error"
+                              : pub.status?.toLowerCase() === "submitted"
+                              ? "warning"
+                              : "default"
+                          }
+                          sx={{ fontWeight: "600" }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          {pub.files.slice(0, 3).map((f: string, i: number) => (
+                            <Tooltip key={i} title={f}>
+                              <Avatar
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  bgcolor: "primary.main",
+                                  cursor: "pointer",
+                                  "&:hover": {
+                                    bgcolor: "primary.dark",
+                                    transform: "scale(1.1)",
+                                  },
+                                  transition: "all 0.2s",
+                                }}
+                                onClick={() => handleOpenFile(f)}
+                              >
+                                <DescriptionIcon sx={{ fontSize: 16 }} />
+                              </Avatar>
+                            </Tooltip>
+                          ))}
+                          {pub.files.length > 3 && (
+                            <Avatar
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                bgcolor: "grey.400",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              +{pub.files.length - 3}
+                            </Avatar>
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<VisibilityIcon />}
+                          disabled={pub.status?.toLowerCase() !== "submitted"}
+                          onClick={() => handleReview(pub.uid, pub.sid)}
+                          sx={{
+                            borderRadius: 2,
+                            textTransform: "none",
+                            fontWeight: "600",
+                            "&:disabled": {
+                              opacity: 0.5,
+                            },
+                          }}
+                        >
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </TableContainer>
+        </Card>
+      </Box>
+    </Container>
   );
 };
 

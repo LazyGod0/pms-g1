@@ -3,9 +3,28 @@
 // =============================
 "use client";
 import * as React from "react";
-import { Box, Button, Container, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Container,
+  Stack,
+  Typography,
+  Avatar,
+  Paper,
+  Card,
+  CardContent,
+  Fade,
+  Chip,
+} from "@mui/material";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import PersonIcon from "@mui/icons-material/Person";
+import SettingsIcon from "@mui/icons-material/Settings";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
   ReportFilters,
   fetchPublications,
@@ -23,14 +42,17 @@ import {
 import { PublicationsTable } from "@/components/StaffReport/PublicationsTable";
 import { exportCSV, exportPDF } from "@/components/StaffReport/export";
 
-export default function ReportPage() {
+function DashboardContent() {
+  const { user } = useAuth();
+  const router = useRouter();
+
   const [filters, setFilters] = React.useState<FiltersState>({
     yearFrom: new Date(Date.now()).getFullYear() - 5,
     yearTo: new Date(Date.now()).getFullYear(),
-    // faculty: 'All Faculties',
     type: "All",
     level: "All",
   });
+
   const [rows, setRows] = React.useState(
     [] as Awaited<ReturnType<typeof fetchPublications>>
   );
@@ -38,7 +60,7 @@ export default function ReportPage() {
   const reload = React.useCallback(async () => {
     let data = await fetchPublications(filters as ReportFilters);
 
-    // ✅ กรองออก เหลือแค่ Approved / Rejected
+    // กรองออก เหลือแค่ Approved / Rejected
     data = data.filter((r) => {
       const status = r.status?.toLowerCase();
       return status === "approved" || status === "rejected";
@@ -51,7 +73,7 @@ export default function ReportPage() {
     reload();
   }, [reload]);
 
-  // ===== Stats =====
+  // Stats calculations
   const total = rows.length;
   const journals = rows.filter((r) => r.type === "Journal").length;
   const conferences = rows.filter((r) => r.type === "Conference").length;
@@ -64,7 +86,7 @@ export default function ReportPage() {
     (r) => r.status.toLowerCase() === "rejected"
   ).length;
 
-  // ===== Normalize rows for table & export =====
+  // Normalize rows for table & export
   const normalizedRows = rows.map((r) => ({
     ...r,
     authors: (r.authors ?? []).map((a) =>
@@ -72,101 +94,312 @@ export default function ReportPage() {
     ),
   }));
 
+  const handleProfileEdit = () => {
+    router.push("/profile");
+  };
+
   return (
-    <Container maxWidth="xl">
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={2}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={700}>
-            Dashboard
-          </Typography>
-          <Typography color="text.secondary">
-            Show only approved and rejected publications. Export as CSV/PDF file
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            startIcon={<GetAppIcon />}
-            onClick={() => exportCSV(normalizedRows as any)}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: (theme) =>
+          `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}05 50%, transparent 100%)`,
+        py: 3,
+      }}
+    >
+      <Container maxWidth="xl">
+        <Fade in={true} timeout={800}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2, md: 4 },
+              mb: 3,
+              borderRadius: 4,
+              background: "rgba(255, 255, 255, 0.9)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06)",
+            }}
           >
-            Export CSV
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PictureAsPdfIcon />}
-            onClick={() =>
-              exportPDF(
-                normalizedRows as any,
-                {
-                  total,
-                  journals,
-                  conferences,
-                  approved,
-                  rejected,
-                  intl,
-                  natl,
-                },
-                filters
-              )
-            }
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", lg: "center" }}
+              spacing={3}
+            >
+              {/* Header Section */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Avatar
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    background: (theme) =>
+                      `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+                  }}
+                >
+                  <DashboardIcon sx={{ fontSize: 28 }} />
+                </Avatar>
+                <Box>
+                  <Typography
+                    variant="h4"
+                    fontWeight={800}
+                    sx={{
+                      background: (theme) =>
+                        `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                      backgroundClip: "text",
+                      WebkitBackgroundClip: "text",
+                      color: "transparent",
+                      mb: 0.5,
+                    }}
+                  >
+                    Staff Dashboard
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <AnalyticsIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                    <Typography color="text.secondary" variant="body2">
+                      Publications Analytics & Export Center
+                    </Typography>
+                  </Stack>
+                  <Chip
+                    label={`Welcome, ${user?.displayName || "Staff User"}`}
+                    size="small"
+                    sx={{
+                      mt: 1,
+                      bgcolor: "primary.main",
+                      color: "white",
+                      fontWeight: 600,
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Action Buttons */}
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                <Button
+                  variant="outlined"
+                  startIcon={<GetAppIcon />}
+                  onClick={() => exportCSV(normalizedRows as any)}
+                  sx={{
+                    borderRadius: 3,
+                    borderWidth: 2,
+                    fontWeight: 600,
+                    px: 3,
+                    "&:hover": {
+                      borderWidth: 2,
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(0, 0, 0, 0.15)",
+                    },
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                >
+                  Export CSV
+                </Button>
+
+                <Button
+                  variant="contained"
+                  startIcon={<PictureAsPdfIcon />}
+                  onClick={() =>
+                    exportPDF(
+                      normalizedRows as any,
+                      {
+                        total,
+                        journals,
+                        conferences,
+                        approved,
+                        rejected,
+                        intl,
+                        natl,
+                      },
+                      filters
+                    )
+                  }
+                  sx={{
+                    borderRadius: 3,
+                    fontWeight: 600,
+                    px: 3,
+                    background: (theme) =>
+                      `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
+                    boxShadow: "0 4px 20px rgba(25, 118, 210, 0.3)",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 30px rgba(25, 118, 210, 0.4)",
+                      background: (theme) =>
+                        `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
+                    },
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                >
+                  Export PDF
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    <Avatar
+                      sx={{
+                        width: 24,
+                        height: 24,
+                        bgcolor: "primary.main",
+                      }}
+                    >
+                      <PersonIcon sx={{ fontSize: 14 }} />
+                    </Avatar>
+                  }
+                  endIcon={<SettingsIcon />}
+                  onClick={handleProfileEdit}
+                  sx={{
+                    borderRadius: 3,
+                    borderWidth: 2,
+                    fontWeight: 600,
+                    px: 3,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    "&:hover": {
+                      borderWidth: 2,
+                      bgcolor: "primary.main",
+                      color: "white",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(25, 118, 210, 0.3)",
+                    },
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                >
+                  แก้ไขโปรไฟล์
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        </Fade>
+
+        {/* Filters Section */}
+        <Fade in={true} timeout={1000}>
+          <Card
+            elevation={0}
+            sx={{
+              mb: 3,
+              borderRadius: 3,
+              background: "rgba(255, 255, 255, 0.7)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
+            }}
           >
-            Export PDF
-          </Button>
-        </Stack>
-      </Stack>
+            <CardContent sx={{ p: 3 }}>
+              <Filters
+                value={filters}
+                onChange={setFilters}
+                onClear={() =>
+                  setFilters({
+                    yearFrom: 2020,
+                    yearTo: 2024,
+                    type: "All",
+                    level: "All",
+                  })
+                }
+              />
+            </CardContent>
+          </Card>
+        </Fade>
 
-      <Filters
-        value={filters}
-        onChange={setFilters}
-        onClear={() =>
-          setFilters({
-            yearFrom: 2020,
-            yearTo: 2024,
-            // faculty: 'All Faculties',
-            type: "All",
-            level: "All",
-          })
-        }
-      />
+        {/* Stats section */}
+        <Fade in={true} timeout={1200}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)", lg: "repeat(5, 1fr)" },
+              gap: 3,
+              mb: 4,
+            }}
+          >
+            <StatCard label="Total Publications" value={total} />
+            <StatCard label="Journal Articles" value={journals} />
+            <StatCard label="Conference Papers" value={conferences} />
+            <StatCard label="Approved" value={approved} />
+            <StatCard label="Rejected" value={rejected} />
+          </Box>
+        </Fade>
 
-      {/* Stats section */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" },
-          gap: 2,
-          mt: 2,
-        }}
-      >
-        <StatCard label="Total" value={total} />
-        <StatCard label="Journals" value={journals} />
-        <StatCard label="Conferences" value={conferences} />
-        <StatCard label="Approved" value={approved} />
-        <StatCard label="Rejected" value={rejected} />
-      </Box>
+        {/* Charts section */}
+        <Fade in={true} timeout={1400}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+              gap: 3,
+              mb: 4,
+            }}
+          >
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                background: "rgba(255, 255, 255, 0.9)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <PublicationsByYear data={normalizedRows as any} />
+            </Card>
 
-      {/* Charts section */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 2,
-          mt: 2,
-        }}
-      >
-        <PublicationsByYear data={normalizedRows as any} />
-        <PublicationsByType data={normalizedRows as any} />
-        <PublicationsByLevel data={normalizedRows as any} />
-      </Box>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                background: "rgba(255, 255, 255, 0.9)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <PublicationsByType data={normalizedRows as any} />
+            </Card>
 
-      <Box sx={{ mt: 2 }}>
-        <PublicationsTable rows={normalizedRows as any} />
-      </Box>
-    </Container>
+            <Card
+              elevation={0}
+              sx={{
+                gridColumn: { xs: "1", lg: "1 / -1" },
+                borderRadius: 3,
+                background: "rgba(255, 255, 255, 0.9)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <PublicationsByLevel data={normalizedRows as any} />
+            </Card>
+          </Box>
+        </Fade>
+
+        {/* Publications Table */}
+        <Fade in={true} timeout={1600}>
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 3,
+              background: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(15px)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              boxShadow: "0 12px 40px rgba(0, 0, 0, 0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <PublicationsTable rows={normalizedRows as any} />
+          </Card>
+        </Fade>
+      </Container>
+    </Box>
+  );
+}
+
+export default function StaffDashboardPage() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }

@@ -466,16 +466,7 @@ function ProfileContent() {
                     variant="outlined"
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="ตำแหน่ง"
-                    value={profile.position}
-                    onChange={(e) => handleProfileChange('position', e.target.value)}
-                    disabled={!editMode}
-                    variant="outlined"
-                  />
-                </Grid>
+
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
@@ -489,17 +480,7 @@ function ProfileContent() {
                     }}
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="ตำแหน่งทางวิชาการ"
-                    value={profile.academicRank}
-                    onChange={(e) => handleProfileChange('academicRank', e.target.value)}
-                    disabled={!editMode}
-                    variant="outlined"
-                    placeholder="เช่น ผู้ช่วยศาสตราจารย์, รองศาสตราจารย์"
-                  />
-                </Grid>
+
               </Grid>
 
               {editMode && (

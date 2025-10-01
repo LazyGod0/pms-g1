@@ -44,7 +44,7 @@ function ProtectedRouteContent({
                 return;
             }
 
-            if (requiredRole === "lecturer" && !["admin", "editor", "lecturer"].includes(user?.role || "")) {
+            if (requiredRole === "lecturer" && !["admin", "editor", "lecturer", "staff"].includes(user?.role || "")) {
                 setHasRedirected(true);
                 router.push(redirectTo);
                 return;
@@ -75,7 +75,7 @@ function ProtectedRouteContent({
     if (!isAuthenticated ||
         (requiredRole === "admin" && user?.role !== "admin") ||
         (requiredRole === "editor" && !["admin", "editor"].includes(user?.role || "")) ||
-        (requiredRole === "lecturer" && !["admin", "editor", "lecturer"].includes(user?.role || ""))) {
+        (requiredRole === "lecturer" && !["admin", "editor", "lecturer", "staff"].includes(user?.role || ""))) {
         return (
             <Box
                 sx={{
