@@ -211,7 +211,7 @@ export default function SignInPage() {
     };
 
     const handleGoBack = () => {
-        router.back();
+        router.push("/");
     };
 
     // useEffect เพื่อ redirect เมื่อ user และ role พร้อม
@@ -223,8 +223,8 @@ export default function SignInPage() {
 
             if (authUser.role === "admin") {
                 redirectPath = "/admin";
-            } else if (authUser.role === "editor") {
-                redirectPath = "/dashboard";
+            } else if (authUser.role === "staff") {
+                redirectPath = "/staff/dashboard";
             } else if (authUser.role === "lecturer") {
                 redirectPath = "/lec-dashboard";
             } else {
