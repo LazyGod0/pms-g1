@@ -338,9 +338,50 @@ export default function ReviewPublicationPage() {
               <Box>
                 <Typography variant="h6" sx={{ mb: 2 }}>Attachments</Typography>
                 <List>
-                  {(pub.attachments?.files ?? []).map((f, i) => (
-                    <ListItem key={i}><ListItemText primary={f} /></ListItem>
-                  ))}
+                  {(pub.attachments?.files ?? []).map((f, i) => {
+                    // Handle both string and object formats for backward compatibility
+                    if (typeof f === 'string') {
+                      return (
+                        <ListItem key={i}>
+                          <ListItemText primary={f} />
+                        </ListItem>
+                      );
+                    }
+
+                    // Handle object format with file properties
+                    const fileName = f.name || f.path || `File ${i + 1}`;
+                    const fileSize = f.size ? `(${(f.size / 1024).toFixed(1)} KB)` : '';
+                    const fileType = f.type ? ` • ${f.type}` : '';
+
+                    return (
+                      <ListItem key={i}>
+                        <ListItemText
+                          primary={fileName}
+                          secondary={`${fileSize}${fileType}`.trim() || 'File attachment'}
+                        />
+                        {f.url && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            href={f.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ ml: 2 }}
+                          >
+                            View
+                          </Button>
+                        )}
+                      </ListItem>
+                    );
+                  })}
+                  {(pub.attachments?.files ?? []).length === 0 && (
+                    <ListItem>
+                      <ListItemText
+                        primary="No attachments"
+                        secondary="No files were attached to this submission"
+                      />
+                    </ListItem>
+                  )}
                 </List>
               </Box>
             )}
