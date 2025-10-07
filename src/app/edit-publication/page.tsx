@@ -226,8 +226,94 @@ export default function EditPublicationPage() {
     }
   };
 
-  const handleSave = async () => {
-    if (!validateCurrentStep()) return;
+  const handleSaveDraft = async () => {
+    if (!publicationId || !user?.uid) {
+      setSnack({ open: true, msg: "ข้อมูลไม่ครบถ้วน", sev: "error" });
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const docRef = doc(db, "users", user.uid, "submissions", publicationId);
+
+      await updateDoc(docRef, {
+        basics: form.basics,
+        authors: form.authors,
+        identifiers: form.identifiers,
+        attachments: form.attachments,
+        status: "draft",
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      });
+
+      setSnack({
+        open: true,
+        msg: "บันทึกร่างเรียบร้อยแล้ว",
+        sev: "success"
+      });
+
+      // Log the draft save activity
+      try {
+        await logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "edit",
+          actionText: "บันทึกร่างผลงาน",
+          category: "content",
+          method: "web",
+          targetType: "submission",
+          targetId: publicationId,
+          targetName: form.basics.title || "Untitled Publication",
+          severity: "medium",
+          details: `บันทึกร่างผลงาน: ${form.basics.title}`,
+          metadata: {
+            editAction: "save_draft",
+            publicationType: form.basics.type,
+            publicationLevel: form.basics.level,
+            publicationYear: form.basics.year,
+            authorCount: form.authors?.length || 0,
+            hasAttachments: (form.attachments?.files?.length || 0) > 0,
+            step: activeStep,
+            totalSteps: steps.length
+          }
+        });
+      } catch (logError) {
+        console.error("Failed to log draft save activity:", logError);
+      }
+
+      // Redirect back to publications list after a short delay
+      setTimeout(() => {
+        router.push("/lec-publication");
+      }, 2000);
+
+    } catch (error: any) {
+      console.error("Error saving draft:", error);
+      setSnack({
+        open: true,
+        msg: "เกิดข้อผิดพลาดในการบันทึกร่าง",
+        sev: "error"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Validate all required steps before submitting
+    const step0Valid = validateBasicsForSubmission();
+    const step1Valid = validateAuthorsForSubmission();
+
+    if (!step0Valid || !step1Valid) {
+      setSnack({
+        open: true,
+        msg: "กรุณากรอกข้อมูลที่บังคับให้ครบก่อนส่งผลงาน",
+        sev: "warning"
+      });
+      return;
+    }
 
     if (!publicationId || !user?.uid) {
       setSnack({ open: true, msg: "ข้อมูลไม่ครบถ้วน", sev: "error" });
@@ -244,34 +330,36 @@ export default function EditPublicationPage() {
         authors: form.authors,
         identifiers: form.identifiers,
         attachments: form.attachments,
+        status: "submitted",
         updatedAt: serverTimestamp(),
+        submittedAt: serverTimestamp(),
         updatedBy: user.uid
       });
 
       setSnack({
         open: true,
-        msg: "บันทึกการแก้ไขเรียบร้อยแล้ว",
+        msg: "ส่งผลงานเรียบร้อยแล้ว",
         sev: "success"
       });
 
-      // Log the save/edit activity with detailed information
+      // Log the submission activity
       try {
         await logUserActivity({
           userId: user.uid,
           userEmail: user.email || "unknown@system.com",
           userName: user.displayName || user.email || "Unknown User",
           userRole: "lecturer",
-          action: "edit",
-          actionText: "แก้ไขและบันทึกผลงาน",
+          action: "submit",
+          actionText: "ส่งผลงานที่แก้ไขแล้ว",
           category: "content",
           method: "web",
           targetType: "submission",
           targetId: publicationId,
           targetName: form.basics.title || "Untitled Publication",
-          severity: "medium",
-          details: `แก้ไขและบันทึกผลงาน: ${form.basics.title} (${form.basics.type}, ${form.basics.level})`,
+          severity: "high",
+          details: `ส่งผลงานที่แก้ไขแล้ว: ${form.basics.title}`,
           metadata: {
-            editAction: "save_changes",
+            editAction: "submit_edited",
             publicationType: form.basics.type,
             publicationLevel: form.basics.level,
             publicationYear: form.basics.year,
@@ -283,12 +371,12 @@ export default function EditPublicationPage() {
             hasURL: !!form.identifiers?.url,
             referenceCount: form.identifiers?.references?.length || 0,
             titleChanged: originalTitle !== form.basics.title,
-            originalTitle: originalTitle
+            originalTitle: originalTitle,
+            submittedAt: new Date().toISOString()
           }
         });
-        console.log("Edit/save activity logged successfully");
       } catch (logError) {
-        console.error("Failed to log edit/save activity:", logError);
+        console.error("Failed to log submission activity:", logError);
       }
 
       // Redirect back to publications list after a short delay
@@ -297,16 +385,62 @@ export default function EditPublicationPage() {
       }, 2000);
 
     } catch (error: any) {
-      console.error("Error updating publication:", error);
+      console.error("Error submitting publication:", error);
       setSnack({
         open: true,
-        msg: "เกิดข้อผิดพลาดในการบันทึก",
+        msg: "เกิดข้อผิดพลาดในการส่งผลงาน",
         sev: "error"
       });
     } finally {
       setSaving(false);
     }
   };
+
+  const validateBasicsForSubmission = (): boolean => {
+    const errors: BasicsErrors = {};
+    if (!form.basics.title.trim()) errors.title = "กรุณากรอกชื่อเรื่อง";
+    if (!form.basics.type) errors.type = "กรุณาเลือกประเภทผลงาน";
+    if (!form.basics.level) errors.level = "กรุณาเลือกระดับผลงาน";
+    if (!form.basics.year) errors.year = "กรุณาเลือกปี";
+    if (!form.basics.abstract.trim()) errors.abstract = "กรุณากรอกบทคัดย่อ";
+
+    setBasicsErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateAuthorsForSubmission = (): boolean => {
+    const authErrors: AuthorsErrors = {};
+    let hasAuthErrors = false;
+
+    if (form.authors.length === 0) {
+      return false;
+    }
+
+    form.authors.forEach((author, index) => {
+      const rowErrors: AuthorRowError = {};
+      if (!author.name?.trim()) {
+        rowErrors.name = "กรุณากรอกชื่อผู้แต่ง";
+        hasAuthErrors = true;
+      }
+      if (!author.affiliation?.trim()) {
+        rowErrors.affiliation = "กรุณากรอกสังกัด";
+        hasAuthErrors = true;
+      }
+      if (author.email && !/\S+@\S+\.\S+/.test(author.email)) {
+        rowErrors.email = "รูปแบบอีเมลไม่ถูกต้อง";
+        hasAuthErrors = true;
+      }
+      if (Object.keys(rowErrors).length > 0) {
+        authErrors[index] = rowErrors;
+      }
+    });
+
+    setAuthorsErrors(authErrors);
+    return !hasAuthErrors;
+  };
+
+  // Replace the old handleSave function
+  const handleSave = handleSaveDraft;
 
   const closeSnack = () => setSnack((prev) => ({ ...prev, open: false }));
 
@@ -667,30 +801,60 @@ export default function EditPublicationPage() {
                                 ถัดไป
                               </Button>
                             ) : (
-                              <Button
-                                onClick={handleSave}
-                                size="large"
-                                variant="contained"
-                                disabled={saving}
-                                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                                sx={{
-                                  borderRadius: 3,
-                                  px: 4,
-                                  py: 1.5,
-                                  fontWeight: 600,
-                                  minWidth: 180,
-                                  background: saving
-                                    ? "linear-gradient(135deg, #ccc 0%, #999 100%)"
-                                    : "linear-gradient(135deg, #4caf50 0%, #45a049 100%)",
-                                  "&:hover": {
-                                    transform: saving ? "none" : "translateY(-2px)",
-                                    boxShadow: saving ? "none" : "0 12px 24px rgba(76, 175, 80, 0.4)"
-                                  },
-                                  transition: "all 0.3s ease"
-                                }}
-                              >
-                                {saving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
-                              </Button>
+                              <Stack direction="row" spacing={2}>
+                                <Button
+                                  onClick={handleSaveDraft}
+                                  size="large"
+                                  variant="outlined"
+                                  disabled={saving}
+                                  startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                                  sx={{
+                                    borderRadius: 3,
+                                    px: 3,
+                                    py: 1.5,
+                                    fontWeight: 600,
+                                    borderColor: 'secondary.main',
+                                    color: 'secondary.main',
+                                    borderWidth: 2,
+                                    '&:hover': {
+                                      borderWidth: 2,
+                                      borderColor: 'secondary.dark',
+                                      bgcolor: 'secondary.main',
+                                      color: '#ffffff',
+                                      transform: saving ? "none" : "translateY(-2px)",
+                                      boxShadow: saving ? "none" : "0 8px 16px rgba(156, 39, 176, 0.3)"
+                                    },
+                                    transition: "all 0.3s ease"
+                                  }}
+                                >
+                                  {saving ? "กำลังบันทึก..." : "บันทึกร่าง"}
+                                </Button>
+
+                                <Button
+                                  onClick={handleSubmit}
+                                  size="large"
+                                  variant="contained"
+                                  disabled={saving}
+                                  startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                                  sx={{
+                                    borderRadius: 3,
+                                    px: 4,
+                                    py: 1.5,
+                                    fontWeight: 700,
+                                    minWidth: 160,
+                                    background: saving
+                                      ? "linear-gradient(135deg, #ccc 0%, #999 100%)"
+                                      : "linear-gradient(135deg, #4caf50 0%, #45a049 100%)",
+                                    "&:hover": {
+                                      transform: saving ? "none" : "translateY(-2px)",
+                                      boxShadow: saving ? "none" : "0 12px 24px rgba(76, 175, 80, 0.4)"
+                                    },
+                                    transition: "all 0.3s ease"
+                                  }}
+                                >
+                                  {saving ? "กำลังส่ง..." : "ส่งผลงาน"}
+                                </Button>
+                              </Stack>
                             )}
                           </Box>
                         </Stack>
