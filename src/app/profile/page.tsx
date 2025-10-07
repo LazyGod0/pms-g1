@@ -38,6 +38,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { logUserActivity } from '@/libs/activity-logger';
 import {
   updatePassword,
   reauthenticateWithCredential,
@@ -125,6 +126,29 @@ function ProfileContent() {
     const loadProfile = async () => {
       if (!user?.uid) return;
 
+      // Log page visit activity (background)
+      setTimeout(() => {
+        logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "view",
+          actionText: "เข้าชมหน้าโปรไฟล์",
+          category: "content",
+          method: "web",
+          targetType: "system",
+          targetName: "หน้าโปรไฟล์ส่วนตัว",
+          severity: "low",
+          details: "เข้าสู่หน้าจัดการโปรไฟล์ส่วนตัว",
+          metadata: {
+            pageType: "profile",
+            userId: user.uid,
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.log("Logging error:", err));
+      }, 0);
+
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userData = userDoc.exists() ? userDoc.data() : {};
@@ -192,6 +216,37 @@ function ProfileContent() {
         message: 'บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว',
         severity: 'success',
       });
+
+      // Log profile update activity
+      setTimeout(() => {
+        logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "edit",
+          actionText: "อัปเดตข้อมูลโปรไฟล์",
+          category: "user_management",
+          method: "web",
+          targetType: "user",
+          targetId: user.uid,
+          targetName: "ข้อมูลโปรไฟล์ส่วนตัว",
+          severity: "medium",
+          details: `อัปเดตข้อมูลโปรไฟล์: ${profile.displayName}`,
+          metadata: {
+            action: "profile_update",
+            updatedFields: {
+              displayName: profile.displayName,
+              faculty: profile.faculty,
+              department: profile.department,
+              position: profile.position,
+              phone: profile.phone,
+              academicRank: profile.academicRank,
+            },
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.log("Logging error:", err));
+      }, 100);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSnackbar({
@@ -265,6 +320,31 @@ function ProfileContent() {
         message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว',
         severity: 'success',
       });
+
+      // Log password change activity (background)
+      setTimeout(() => {
+        logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "edit",
+          actionText: "เปลี่ยนรหัสผ่าน",
+          category: "auth",
+          method: "web",
+          targetType: "user",
+          targetId: user.uid,
+          targetName: "รหัสผ่านบัญชีผู้ใช้",
+          severity: "high",
+          details: "เปลี่ยนรหัสผ่านบัญชีผู้ใช้เรียบร้อย",
+          metadata: {
+            action: "password_change",
+            timestamp: new Date().toISOString(),
+            method: "email_password_reauthentication",
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'
+          }
+        }).catch(err => console.log("Logging error:", err));
+      }, 100);
     } catch (error: any) {
       console.error('Error changing password:', error);
       let message = 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน';

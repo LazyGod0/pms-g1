@@ -28,6 +28,7 @@ import AttachmentsStep from "@/app/component/steps/AttachmentsStep";
 import SidebarSummary from "@/app/component/publications/SidebarSummary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts";
+import { logUserActivity } from "@/libs/activity-logger";
 
 import { SubmissionForm } from "@/types/submission";
 import { db } from "@/configs/firebase-config";
@@ -57,6 +58,34 @@ function LecNewSubmitContent() {
   const [snack, setSnack] = React.useState<SnackState>({ open: false, msg: "", sev: "success" });
   const [errors, setErrors] = React.useState<{ basics?: BasicsErrors; authors?: AuthorsErrors }>({});
   const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false);
+
+  // Log page visit when component mounts and user is available
+  React.useEffect(() => {
+    if (user?.uid) {
+      // Log page visit activity (background)
+      setTimeout(() => {
+        logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "view",
+          actionText: "เข้าชมหน้าส่งผลงานใหม่",
+          category: "content",
+          method: "web",
+          targetType: "system",
+          targetName: "หน้าส่งผลงานตีพิมพ์ใหม่",
+          severity: "low",
+          details: "เข้าสู่หน้าส่งผลงานตีพิมพ์ใหม่",
+          metadata: {
+            pageType: "new_submission",
+            userId: user.uid,
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.log("Logging error:", err));
+      }, 0);
+    }
+  }, [user]);
 
   // setters
   const setBasics = (next: SubmissionForm["basics"]) => setForm((p) => ({ ...p, basics: next }));
@@ -173,6 +202,36 @@ function LecNewSubmitContent() {
       });
 
       setSnack({ open: true, msg: `Draft ถูกบันทึกเป็น ${newId}`, sev: "success" });
+
+      // Log the draft save activity (background)
+      setTimeout(() => {
+        logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "create",
+          actionText: "บันทึกร่างผลงานตีพิมพ์",
+          category: "content",
+          method: "web",
+          targetType: "submission",
+          targetId: newId,
+          targetName: form.basics.title || "ผลงานไม่ระบุชื่อ",
+          severity: "medium",
+          details: `บันทึกร่างผลงาน: ${form.basics.title || "ไม่ระบุชื่อ"} (${form.basics.year || "ไม่ระบุปี"})`,
+          metadata: {
+            action: "draft_save",
+            submissionId: newId,
+            publicationType: form.basics.type,
+            publicationLevel: form.basics.level,
+            publicationYear: form.basics.year,
+            step: activeStep,
+            totalSteps: steps.length,
+            hasAttachments: form.attachments.files.length > 0,
+            authorCount: form.authors.length
+          }
+        }).catch(err => console.log("Logging error:", err));
+      }, 100);
     } catch (e: unknown) {
       setIsCheckingDuplicate(false);
       const msg = e instanceof Error ? e.message : String(e);
@@ -258,6 +317,37 @@ function LecNewSubmitContent() {
         });
 
         setSnack({ open: true, msg: `ส่งสำเร็จเป็นเอกสาร ${newId}`, sev: "success" });
+
+        // Log the submission activity (background)
+        setTimeout(() => {
+          logUserActivity({
+            userId: user.uid,
+            userEmail: user.email || "unknown@system.com",
+            userName: user.displayName || user.email || "Unknown User",
+            userRole: "lecturer",
+            action: "submit",
+            actionText: "ส่งผลงานตีพิมพ์",
+            category: "content",
+            method: "web",
+            targetType: "submission",
+            targetId: newId,
+            targetName: form.basics.title || "ผลงานไม่ระบุชื่อ",
+            severity: "high",
+            details: `ส่งผลงานตีพิมพ์: ${form.basics.title || "ไม่ระบุชื่อ"} (${form.basics.year || "ไม่ระบุปี"})`,
+            metadata: {
+              action: "submission_complete",
+              submissionId: newId,
+              publicationType: form.basics.type,
+              publicationLevel: form.basics.level,
+              publicationYear: form.basics.year,
+              hasAttachments: form.attachments.files.length > 0,
+              authorCount: form.authors.length,
+              hasDOI: Boolean(form.identifiers.doi),
+              hasURL: Boolean(form.identifiers.url),
+              submittedAt: new Date().toISOString()
+            }
+          }).catch(err => console.log("Logging error:", err));
+        }, 100);
 
         // Navigate back to dashboard after successful submission
         setTimeout(() => {

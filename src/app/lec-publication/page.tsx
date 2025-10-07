@@ -37,6 +37,7 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { logUserActivity } from "@/libs/activity-logger";
 
 export type Pub = {
     id: string;
@@ -212,6 +213,29 @@ export default function PublicationsPage() {
                     return;
                 }
 
+                // Log page visit (background)
+                setTimeout(() => {
+                    logUserActivity({
+                        userId: user.uid,
+                        userEmail: user.email || "unknown@system.com",
+                        userName: user.displayName || user.email || "Unknown User",
+                        userRole: "lecturer",
+                        action: "view",
+                        actionText: "เข้าชมหน้าผลงานตีพิมพ์",
+                        category: "content",
+                        method: "web",
+                        targetType: "system",
+                        targetName: "หน้าผลงานตีพิมพ์",
+                        severity: "low",
+                        details: "เข้าสู่หน้าจัดการผลงานตีพิมพ์ของฉัน",
+                        metadata: {
+                            pageType: "lec_publications",
+                            userId: user.uid,
+                            timestamp: new Date().toISOString()
+                        }
+                    }).catch(err => console.log("Logging error:", err));
+                }, 0);
+
                 const userRef = doc(db, "users", user.uid);
                 const userSnap = await getDoc(userRef);
                 const userDoc = userSnap.exists() ? userSnap.data() : undefined;
@@ -261,6 +285,32 @@ export default function PublicationsPage() {
 
     const handleEdit = () => {
         if (selectedPub) {
+            // Log edit action (background)
+            setTimeout(() => {
+                logUserActivity({
+                    userId: auth.currentUser?.uid || "anonymous",
+                    userEmail: auth.currentUser?.email || "unknown@system.com",
+                    userName: auth.currentUser?.displayName || "Unknown User",
+                    userRole: "lecturer",
+                    action: "edit",
+                    actionText: "เริ่มแก้ไขผลงานตีพิมพ์",
+                    category: "content",
+                    method: "web",
+                    targetType: "submission",
+                    targetId: selectedPub.id,
+                    targetName: selectedPub.title,
+                    severity: "medium",
+                    details: `เริ่มแก้ไขผลงาน: ${selectedPub.title}`,
+                    metadata: {
+                        action: "edit_start",
+                        publicationType: selectedPub.type,
+                        publicationLevel: selectedPub.level,
+                        publicationYear: selectedPub.year,
+                        publicationStatus: selectedPub.status
+                    }
+                }).catch(err => console.log("Logging error:", err));
+            }, 50);
+
             router.push(`/edit-publication?id=${selectedPub.id}`);
         }
         closeMenu();
@@ -312,6 +362,33 @@ export default function PublicationsPage() {
 
             // Update local state to remove the deleted publication
             setData(prev => prev.filter(p => p.id !== pubToDelete.id));
+
+            // Log delete action (background)
+            setTimeout(() => {
+                logUserActivity({
+                    userId: auth.currentUser?.uid || "anonymous",
+                    userEmail: auth.currentUser?.email || "unknown@system.com",
+                    userName: auth.currentUser?.displayName || "Unknown User",
+                    userRole: "lecturer",
+                    action: "delete",
+                    actionText: "ลบผลงานตีพิมพ์",
+                    category: "content",
+                    method: "web",
+                    targetType: "submission",
+                    targetId: pubToDelete.id,
+                    targetName: pubToDelete.title,
+                    severity: "high",
+                    details: `ลบผลงาน: ${pubToDelete.title}`,
+                    metadata: {
+                        action: "delete_success",
+                        publicationType: pubToDelete.type,
+                        publicationLevel: pubToDelete.level,
+                        publicationYear: pubToDelete.year,
+                        publicationStatus: pubToDelete.status,
+                        deletedAt: new Date().toISOString()
+                    }
+                }).catch(err => console.log("Logging error:", err));
+            }, 100);
 
             setSnackbar({
                 open: true,

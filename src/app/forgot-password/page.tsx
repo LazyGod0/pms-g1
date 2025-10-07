@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { logUserActivity } from "@/libs/activity-logger";
 
 import {
     Box,
@@ -39,6 +40,33 @@ export default function ForgotPasswordPage() {
     const [message, setMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Log activity when page loads (background process)
+    useEffect(() => {
+        // Run logging in background without blocking
+        setTimeout(() => {
+            logUserActivity({
+                userId: "anonymous",
+                userEmail: "anonymous@system.com",
+                userName: "Anonymous User",
+                userRole: "guest",
+                action: "view",
+                actionText: "เข้าชมหน้าลืมรหัสผ่าน",
+                category: "auth",
+                method: "web",
+                targetType: "system",
+                targetName: "หน้าลืมรหัสผ่าน",
+                severity: "low",
+                details: "เข้าสู่หน้าขอรีเซ็ตรหัสผ่าน",
+                metadata: {
+                    pageType: "forgot_password",
+                    userAgent: navigator?.userAgent || "Unknown",
+                    referrer: document?.referrer || "direct",
+                    timestamp: new Date().toISOString()
+                }
+            }).catch(err => console.log("Logging error:", err));
+        }, 0);
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setMessage(null);
@@ -61,6 +89,32 @@ export default function ForgotPasswordPage() {
             return;
         }
 
+        // Log password reset request (background)
+        setTimeout(() => {
+            logUserActivity({
+                userId: "anonymous",
+                userEmail: trimmedEmail,
+                userName: "Password Reset Request",
+                userRole: "guest",
+                action: "create",
+                actionText: "ส่งคำขอรีเซ็ตรหัสผ่าน",
+                category: "auth",
+                method: "web",
+                targetType: "system",
+                targetName: "Password Reset System",
+                severity: "medium",
+                details: `ขอรีเซ็ตรหัสผ่านสำหรับอีเมล: ${trimmedEmail}`,
+                metadata: {
+                    requestType: "password_reset",
+                    requestedEmail: trimmedEmail,
+                    emailValid: true,
+                    requestTime: new Date().toISOString(),
+                    userAgent: navigator?.userAgent || "Unknown",
+                    ipAddress: "client_request"
+                }
+            }).catch(err => console.log("Logging error:", err));
+        }, 100);
+
         try {
             // แสดงข้อความว่าได้รับคำขอแล้ว
             setMessage(`ได้รับคำขอรีเซ็ตรหัสผ่านสำหรับอีเมล: ${trimmedEmail}\nกรุณาติดต่อผู้ดูแลระบบเพื่อดำเนินการต่อ`);
@@ -68,6 +122,32 @@ export default function ForgotPasswordPage() {
             // ล้างฟอร์ม
             setEmail("");
         } catch (err: any) {
+            console.error("Password reset request error:", err);
+
+            // Log error activity (background)
+            setTimeout(() => {
+                logUserActivity({
+                    userId: "anonymous",
+                    userEmail: trimmedEmail,
+                    userName: "Password Reset Error",
+                    userRole: "guest",
+                    action: "create",
+                    actionText: "ความผิดพลาดในการขอรีเซ็ตรหัสผ่าน",
+                    category: "auth",
+                    method: "web",
+                    targetType: "system",
+                    targetName: "Password Reset System",
+                    severity: "high",
+                    details: `เกิดข้อผิดพลาดในการขอรีเซ็ตรหัสผ่าน: ${err.message || "Unknown error"}`,
+                    metadata: {
+                        requestType: "password_reset_error",
+                        requestedEmail: trimmedEmail,
+                        errorMessage: err.message || "Unknown error",
+                        errorTime: new Date().toISOString()
+                    }
+                }).catch(logErr => console.log("Logging error:", logErr));
+            }, 50);
+
             setMessage("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         } finally {
             setLoading(false);
@@ -75,6 +155,29 @@ export default function ForgotPasswordPage() {
     };
 
     const handleGoBack = () => {
+        // Log navigation activity (background)
+        setTimeout(() => {
+            logUserActivity({
+                userId: "anonymous",
+                userEmail: "anonymous@system.com",
+                userName: "Anonymous User",
+                userRole: "guest",
+                action: "view",
+                actionText: "ออกจากหน้าลืมรหัสผ่าน",
+                category: "auth",
+                method: "web",
+                targetType: "system",
+                targetName: "Navigation",
+                severity: "low",
+                details: "กดปุ่มย้อนกลับจากหน้าลืมรหัสผ่าน",
+                metadata: {
+                    navigationAction: "back_button",
+                    fromPage: "forgot_password",
+                    timestamp: new Date().toISOString()
+                }
+            }).catch(err => console.log("Logging error:", err));
+        }, 0);
+
         router.back();
     };
 

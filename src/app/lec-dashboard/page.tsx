@@ -24,6 +24,7 @@ import { signOut } from 'firebase/auth';
 import { collection, getDocs, orderBy, query, limit, Timestamp } from 'firebase/firestore';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts';
+import { logUserActivity } from '@/libs/activity-logger';
 
 type Activity = {
   id: string;
@@ -364,6 +365,38 @@ function LecturerDashboardContent() {
     };
 
     fetchData();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const logActivity = async () => {
+      try {
+        await logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "view",
+          actionText: "เข้าชม Dashboard อาจารย์",
+          category: "content",
+          method: "web",
+          targetType: "system",
+          targetName: "หน้า Dashboard อาจารย์",
+          severity: "low",
+          details: "เข้าสู่หน้า Dashboard อาจารย์",
+          metadata: {
+            pageType: "lecturer_dashboard",
+            userId: user.uid,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        console.error('Error logging user activity:', error);
+      }
+    };
+
+    logActivity();
   }, [user?.uid]);
 
   const handleLogout = async () => {

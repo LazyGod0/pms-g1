@@ -44,6 +44,7 @@ import { useAuth } from "@/contexts";
 import { SubmissionForm } from "@/types/submission";
 import { db } from "@/configs/firebase-config";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { logUserActivity } from "@/libs/activity-logger";
 
 const steps = ["ข้อมูลพื้นฐาน", "ผู้แต่ง", "ตัวระบุ", "ไฟล์แนบ"];
 
@@ -123,6 +124,34 @@ export default function EditPublicationPage() {
 
         setForm(loadedForm);
         setOriginalTitle(loadedForm.basics.title);
+
+        // Log activity when accessing edit publication page
+        try {
+          await logUserActivity({
+            userId: user.uid,
+            userEmail: user.email || "unknown@system.com",
+            userName: user.displayName || user.email || "Unknown User",
+            userRole: "lecturer",
+            action: "view",
+            actionText: "เข้าชมหน้าแก้ไขผลงาน",
+            category: "content",
+            method: "web",
+            targetType: "submission",
+            targetId: publicationId,
+            targetName: loadedForm.basics.title || "Untitled Publication",
+            severity: "low",
+            details: `เข้าสู่หน้าแก้ไขผลงาน: ${loadedForm.basics.title}`,
+            metadata: {
+              publicationType: loadedForm.basics.type,
+              publicationLevel: loadedForm.basics.level,
+              publicationYear: loadedForm.basics.year,
+              authorCount: loadedForm.authors?.length || 0,
+              hasAttachments: (loadedForm.attachments?.files?.length || 0) > 0
+            }
+          });
+        } catch (logError) {
+          console.error("Failed to log edit page access:", logError);
+        }
       } catch (error: any) {
         console.error("Error loading publication:", error);
         setSnack({
@@ -224,6 +253,43 @@ export default function EditPublicationPage() {
         msg: "บันทึกการแก้ไขเรียบร้อยแล้ว",
         sev: "success"
       });
+
+      // Log the save/edit activity with detailed information
+      try {
+        await logUserActivity({
+          userId: user.uid,
+          userEmail: user.email || "unknown@system.com",
+          userName: user.displayName || user.email || "Unknown User",
+          userRole: "lecturer",
+          action: "edit",
+          actionText: "แก้ไขและบันทึกผลงาน",
+          category: "content",
+          method: "web",
+          targetType: "submission",
+          targetId: publicationId,
+          targetName: form.basics.title || "Untitled Publication",
+          severity: "medium",
+          details: `แก้ไขและบันทึกผลงาน: ${form.basics.title} (${form.basics.type}, ${form.basics.level})`,
+          metadata: {
+            editAction: "save_changes",
+            publicationType: form.basics.type,
+            publicationLevel: form.basics.level,
+            publicationYear: form.basics.year,
+            authorCount: form.authors?.length || 0,
+            hasAttachments: (form.attachments?.files?.length || 0) > 0,
+            fileCount: form.attachments?.files?.length || 0,
+            keywordCount: form.basics?.keywords?.length || 0,
+            hasDOI: !!form.identifiers?.doi,
+            hasURL: !!form.identifiers?.url,
+            referenceCount: form.identifiers?.references?.length || 0,
+            titleChanged: originalTitle !== form.basics.title,
+            originalTitle: originalTitle
+          }
+        });
+        console.log("Edit/save activity logged successfully");
+      } catch (logError) {
+        console.error("Failed to log edit/save activity:", logError);
+      }
 
       // Redirect back to publications list after a short delay
       setTimeout(() => {
