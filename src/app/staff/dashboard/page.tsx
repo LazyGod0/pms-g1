@@ -60,11 +60,7 @@ function DashboardContent() {
   const reload = React.useCallback(async () => {
     let data = await fetchPublications(filters as ReportFilters);
 
-    // กรองออก เหลือแค่ Approved / Rejected
-    data = data.filter((r) => {
-      const status = r.status?.toLowerCase();
-      return status === "approved" || status === "rejected";
-    });
+    // Don't filter by status - show all publications
     console.log(data);
     setRows(data);
   }, [filters]);
@@ -73,7 +69,7 @@ function DashboardContent() {
     reload();
   }, [reload]);
 
-  // Stats calculations
+  // Stats calculations - include all statuses
   const total = rows.length;
   const journals = rows.filter((r) => r.type === "Journal").length;
   const conferences = rows.filter((r) => r.type === "Conference").length;
@@ -84,6 +80,12 @@ function DashboardContent() {
   ).length;
   const rejected = rows.filter(
     (r) => r.status.toLowerCase() === "rejected"
+  ).length;
+  const submitted = rows.filter(
+    (r) => r.status.toLowerCase() === "submitted"
+  ).length;
+  const draft = rows.filter(
+    (r) => r.status.toLowerCase() === "draft" || r.status.toLowerCase() === "unknown"
   ).length;
 
   // Normalize rows for table & export
@@ -208,6 +210,8 @@ function DashboardContent() {
                         conferences,
                         approved,
                         rejected,
+                        submitted,
+                        draft,
                         intl,
                         natl,
                       },
@@ -307,7 +311,13 @@ function DashboardContent() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)", lg: "repeat(5, 1fr)" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+                lg: "repeat(4, 1fr)",
+                xl: "repeat(7, 1fr)"
+              },
               gap: 3,
               mb: 4,
             }}
@@ -317,6 +327,8 @@ function DashboardContent() {
             <StatCard label="Conference Papers" value={conferences} />
             <StatCard label="Approved" value={approved} />
             <StatCard label="Rejected" value={rejected} />
+            <StatCard label="Submitted" value={submitted} />
+            <StatCard label="Draft" value={draft} />
           </Box>
         </Fade>
 

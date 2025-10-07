@@ -372,7 +372,8 @@ function LecturerDashboardContent() {
 
     const logActivity = async () => {
       try {
-        await logUserActivity({
+        // @ts-ignore
+          await logUserActivity({
           userId: user.uid,
           userEmail: user.email || "unknown@system.com",
           userName: user.displayName || user.email || "Unknown User",

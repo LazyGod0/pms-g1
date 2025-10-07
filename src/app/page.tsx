@@ -511,7 +511,7 @@ export default function PublicHomePage() {
                                                 {stats.total}
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600} color="text.secondary">
-                                                ผลงานทั้งหมด{totalServerCount !== null ? ` (จาก ${totalServerCount} ทั้งระบบ)` : ""}
+                                                ผลงานทั้งหมด{totalServerCount !== null }
                                             </Typography>
                                         </Stack>
                                     </Paper>

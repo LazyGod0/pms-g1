@@ -102,6 +102,24 @@ export default function EditPublicationPage() {
         }
 
         const data = docSnap.data();
+        const currentStatus = data.status?.toLowerCase() || "draft";
+
+        // Check if the publication can be edited based on status
+        if (currentStatus === "approved" || currentStatus === "submitted") {
+          setSnack({
+            open: true,
+            msg: currentStatus === "approved"
+              ? "ไม่สามารถแก้ไขผลงานที่อนุมัติแล้วได้"
+              : "ไม่สามารถแก้ไขผลงานที่อยู่ระหว่างการพิจารณาได้",
+            sev: "warning"
+          });
+          // Redirect back to publications list after showing the message
+          setTimeout(() => {
+            router.push("/lec-publication");
+          }, 2000);
+          return;
+        }
+
         const loadedForm: SubmissionForm = {
           basics: {
             title: data.basics?.title || "",
@@ -146,7 +164,8 @@ export default function EditPublicationPage() {
               publicationLevel: loadedForm.basics.level,
               publicationYear: loadedForm.basics.year,
               authorCount: loadedForm.authors?.length || 0,
-              hasAttachments: (loadedForm.attachments?.files?.length || 0) > 0
+              hasAttachments: (loadedForm.attachments?.files?.length || 0) > 0,
+              currentStatus: currentStatus
             }
           });
         } catch (logError) {

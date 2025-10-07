@@ -32,7 +32,7 @@ export type Publication = {
   // faculty: string | null;
   department: string | null;
 
-  status: 'Submitted' | 'Approved' | 'Rejected' | 'Unknown';
+  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Unknown';
 
   date?: Date;             // used by charts/tables; from submittedAt or createdAt
   authors?: Array<{ name?: string; email?: string }>;
@@ -52,11 +52,17 @@ const toNum = (v: any): number | null => {
 };
 
 const mapStatus = (raw?: string): Publication['status'] => {
-  switch ((raw ?? '').toLowerCase()) {
+  const status = (raw ?? '').toLowerCase().trim();
+  switch (status) {
     case 'approved': return 'Approved';
     case 'rejected': return 'Rejected';
-    case 'submitted': return 'Submitted';
-    default: return 'Unknown';
+    case 'submitted':
+    case 'pending':
+    case 'needs fix':
+    case 'needsfix':
+      return 'Submitted';
+    case 'draft': return 'Draft';
+    default: return 'Draft'; // Changed from 'Unknown' to 'Draft' to match lec-dashboard behavior
   }
 };
 
@@ -70,23 +76,13 @@ const mapStatus = (raw?: string): Publication['status'] => {
  *  click it to create the index.
  */
 export async function fetchPublications(filters: ReportFilters): Promise<Publication[]> {
-  const constraints: QueryConstraint[] = [];
+  // Remove server-side filtering to get ALL publications
+  // Only keep basic ordering to avoid complex composite index requirements
+  const q = query(
+    collectionGroup(db, 'submissions'),
+    orderBy('createdAt', 'desc') // Use createdAt instead of basics.year to avoid index issues
+  );
 
-  // Push selective equality filters server-side where possible
-  if (filters.type !== 'All') {
-    constraints.push(where('basics.type', '==', filters.type));
-  }
-  if (filters.level !== 'All') {
-    constraints.push(where('basics.level', '==', filters.level));
-  }
-  // if (filters.faculty !== 'All Faculties') {
-  //   constraints.push(where('faculty', '==', filters.faculty));
-  // }
-
-  // Order by year (may be string in some docs; we'll coerce later)
-  constraints.push(orderBy('basics.year', 'desc'));
-
-  const q = query(collectionGroup(db, 'submissions'), ...constraints);
   const snap = await getDocs(q);
 
   const rows: Publication[] = snap.docs.map((ds) => {
@@ -110,7 +106,7 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
       level: basics.level ?? null,
 
       // faculty: d.faculty ?? null,
-      department: d.department ?? null, // ← If department lives on the user doc, see note below.
+      department: d.department ?? null,
 
       status: mapStatus(d.status),
 
@@ -120,19 +116,32 @@ export async function fetchPublications(filters: ReportFilters): Promise<Publica
         : undefined,
     };
   });
-  console.log(rows)
-  // Client-side year range filter (robust to mixed types)
+
+  console.log('Raw publications fetched:', rows.length);
+
+  // Comprehensive client-side filtering
   const filtered = rows.filter((r) => {
-    const inYear = r.year !== null && r.year >= filters.yearFrom && r.year <= filters.yearTo;
-    // const inFaculty =
-    //   filters.faculty === 'All Faculties' || (r.faculty ?? '') === filters.faculty;
-    const inType = filters.type === 'All' || (r.type ?? '') === filters.type;
-    const inLevel = filters.level === 'All' || (r.level ?? '') === filters.level;
-    return inYear && inType && inLevel;
+    // Year filter - handle null years gracefully
+    const yearInRange = r.year === null || (r.year >= filters.yearFrom && r.year <= filters.yearTo);
+
+    // Type filter
+    const typeMatches = filters.type === 'All' || r.type === filters.type;
+
+    // Level filter
+    const levelMatches = filters.level === 'All' || r.level === filters.level;
+
+    return yearInRange && typeMatches && levelMatches;
   });
 
-  // Stable sort (desc year, then title)
-  filtered.sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.title.localeCompare(b.title));
+  console.log('Filtered publications:', filtered.length);
+
+  // Sort by year (desc) then title
+  filtered.sort((a, b) => {
+    const yearA = a.year ?? 0;
+    const yearB = b.year ?? 0;
+    if (yearA !== yearB) return yearB - yearA;
+    return a.title.localeCompare(b.title);
+  });
 
   return filtered;
 }

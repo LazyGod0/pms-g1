@@ -285,6 +285,19 @@ export default function PublicationsPage() {
 
     const handleEdit = () => {
         if (selectedPub) {
+            // Check if editing is allowed based on status
+            if (!canEdit(selectedPub.status)) {
+                setSnackbar({
+                    open: true,
+                    message: selectedPub.status === 'Approved'
+                        ? 'ไม่สามารถแก้ไขผลงานที่อนุมัติแล้วได้'
+                        : 'ไม่สามารถแก้ไขผลงานที่อยู่ระหว่างการพิจารณาได้',
+                    severity: 'warning'
+                });
+                closeMenu();
+                return;
+            }
+
             // Log edit action (background)
             setTimeout(() => {
                 logUserActivity({
@@ -314,6 +327,11 @@ export default function PublicationsPage() {
             router.push(`/edit-publication?id=${selectedPub.id}`);
         }
         closeMenu();
+    };
+
+    // Helper function to check if publication can be edited
+    const canEdit = (status: Pub["status"]): boolean => {
+        return status === "Draft" || status === "Rejected";
     };
 
     const handleDeleteClick = () => {
@@ -1207,22 +1225,34 @@ export default function PublicationsPage() {
                     >
                         <MenuItem 
                             onClick={handleEdit} 
-                            sx={{ 
+                            disabled={selectedPub ? !canEdit(selectedPub.status) : false}
+                            sx={{
                                 gap: 2, 
                                 borderRadius: 2,
                                 py: 1.5,
                                 '&:hover': {
-                                    bgcolor: 'primary.main',
-                                    color: 'white',
+                                    bgcolor: selectedPub && canEdit(selectedPub.status) ? 'primary.main' : 'transparent',
+                                    color: selectedPub && canEdit(selectedPub.status) ? 'white' : 'inherit',
                                     '& .MuiSvgIcon-root': {
-                                        color: 'white',
+                                        color: selectedPub && canEdit(selectedPub.status) ? 'white' : 'inherit',
+                                    },
+                                },
+                                '&.Mui-disabled': {
+                                    color: 'text.disabled',
+                                    '& .MuiSvgIcon-root': {
+                                        color: 'text.disabled',
                                     },
                                 },
                                 transition: 'all 0.3s ease-in-out',
                             }}
                         >
                             <EditRoundedIcon fontSize="small" />
-                            <Typography fontWeight={600}>แก้ไขผลงาน</Typography>
+                            <Typography fontWeight={600}>
+                                {selectedPub && !canEdit(selectedPub.status)
+                                    ? 'ไม่สามารถแก้ไขได้'
+                                    : 'แก้ไขผลงาน'
+                                }
+                            </Typography>
                         </MenuItem>
                         <MenuItem
                             onClick={handleDeleteClick}
