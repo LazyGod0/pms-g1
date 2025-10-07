@@ -29,6 +29,8 @@ import {
   Avatar,
   Divider,
   Container,
+  IconButton,
+  Stack,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -41,12 +43,13 @@ import {
   Visibility as VisibilityIcon,
   FilterList as FilterIcon,
   Article as ArticleIcon,
+  AttachFile as AttachFileIcon,
+  GetApp as GetAppIcon,
 } from "@mui/icons-material";
 
 // Firestore & Storage
-import { db, storage } from "@/configs/firebase-config";
+import { db } from "@/configs/firebase-config";
 import { collectionGroup, getDocs } from "firebase/firestore";
-import { ref, getDownloadURL } from "firebase/storage";
 
 // Next.js Router
 import { useRouter } from "next/navigation";
@@ -55,6 +58,11 @@ import { useRouter } from "next/navigation";
 interface Author {
   name: string;
   role: string;
+}
+
+interface FileAttachment {
+  name: string;
+  url: string;
 }
 
 interface Publication {
@@ -69,7 +77,7 @@ interface Publication {
   keywords: string[];
   authors: Author[];
   submitter: string;
-  files: string[];
+  files: FileAttachment[];
   doi: string;
   references: string[];
   submitted: string;
@@ -102,6 +110,17 @@ const StaffDashboard = () => {
           const pathParts = doc.ref.path.split("/");
           const uid = pathParts[1]; // users/{uid}
           const sid = pathParts[3]; // submissions/{sid}
+
+          // แปลงข้อมูลไฟล์แนบให้ถูกต้อง
+          const files = Array.isArray(data?.attachments?.files)
+            ? data.attachments.files
+                .filter((file: any) => file?.url && file.url.trim() !== "") // กรองเฉพาะไฟล์ที่มี URL
+                .map((file: any) => ({
+                  name: file?.name || "ไฟล์ไม่ระบุชื่อ",
+                  url: file.url,
+                }))
+            : [];
+
           pubs.push({
             id: doc.id,
             uid,
@@ -110,11 +129,11 @@ const StaffDashboard = () => {
             abstract: data?.basics?.abstract || "",
             year: data?.basics?.year || "-",
             type: data?.basics?.type || "Unknown",
-            level: data?.basics?.level || "Unknown", // อยู่ใน keywords
+            level: data?.basics?.level || "Unknown",
             keywords: data?.keywords || [],
             authors: data?.authors || [],
             submitter: data?.authors?.[0]?.name || "Unknown",
-            files: data?.attachments?.files || [],
+            files: files,
             doi: data?.identifiers?.doi || "",
             references: data?.references || [],
             submitted: data?.submittedAt
@@ -135,14 +154,48 @@ const StaffDashboard = () => {
     fetchData();
   }, []);
 
-  const handleOpenFile = async (filePath: string) => {
+  const handleOpenFile = async (fileUrl: string, fileName: string) => {
     try {
-      const fileRef = ref(storage, filePath);
-      const url = await getDownloadURL(fileRef);
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Basic URL validation
+      if (!fileUrl || fileUrl.trim() === '' || fileUrl === 'undefined' || fileUrl === 'null') {
+        alert(`ไฟล์ "${fileName}" ไม่มี URL ที่ถูกต้อง\nกรุณาติดต่อผู้ดูแลระบบ`);
+        return;
+      }
+
+      // Check if URL looks valid
+      try {
+        new URL(fileUrl);
+      } catch {
+        alert(`ไฟล์ "${fileName}" มี URL ที่ไม่ถูกต้อง\nกรุณาติดต่อผู้ดูแลระบบ`);
+        return;
+      }
+
+      // For Firebase Storage URLs, try direct access without validation
+      // The browser will handle the error if file doesn't exist
+      console.log(`Opening file: ${fileName} at ${fileUrl}`);
+
+      // Try to open the file directly
+      const newWindow = window.open(fileUrl, "_blank", "noopener,noreferrer");
+
+      // Check if popup was blocked
+      if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+        // Fallback: try direct navigation
+        try {
+          const link = document.createElement('a');
+          link.href = fileUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (linkError) {
+          alert(`ไม่สามารถเปิดไฟล์ "${fileName}" ได้\nกรุณาลองใหม่อีกครั้ง`);
+        }
+      }
+
     } catch (error) {
       console.error("Error opening file:", error);
-      alert("ไม่สามารถเปิดไฟล์ได้: " + filePath);
+      alert(`เกิดข้อผิดพลาดในการเปิดไฟล์ "${fileName}"\nกรุณาลองใหม่อีกครั้ง`);
     }
   };
 
@@ -270,7 +323,7 @@ const StaffDashboard = () => {
         {/* Enhanced Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {statsConfig.map((stat, i) => (
-            <Grid key={i} xs={12} sm={6} md={3}>
+            <Grid key={i} item xs={12} sm={6} md={3}>
               <Card
                 sx={{
                   cursor: "pointer",
@@ -604,40 +657,67 @@ const StaffDashboard = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <Box sx={{ display: "flex", gap: 0.5 }}>
-                          {pub.files.slice(0, 3).map((f: string, i: number) => (
-                            <Tooltip key={i} title={f}>
-                              <Avatar
-                                sx={{
-                                  width: 32,
-                                  height: 32,
-                                  bgcolor: "primary.main",
-                                  cursor: "pointer",
-                                  "&:hover": {
-                                    bgcolor: "primary.dark",
-                                    transform: "scale(1.1)",
-                                  },
-                                  transition: "all 0.2s",
-                                }}
-                                onClick={() => handleOpenFile(f)}
+                        {pub.files && pub.files.length > 0 ? (
+                          <Stack spacing={0.5}>
+                            {pub.files.slice(0, 2).map((file, index) => (
+                              <Stack
+                                key={`${file.name}-${index}`}
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
                               >
-                                <DescriptionIcon sx={{ fontSize: 16 }} />
-                              </Avatar>
-                            </Tooltip>
-                          ))}
-                          {pub.files.length > 3 && (
-                            <Avatar
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                bgcolor: "grey.400",
-                                fontSize: "0.75rem",
-                              }}
-                            >
-                              +{pub.files.length - 3}
-                            </Avatar>
-                          )}
-                        </Box>
+                                <AttachFileIcon
+                                  fontSize="small"
+                                  color="primary"
+                                />
+                                <Typography
+                                  variant="body2"
+                                  component="span"
+                                  sx={{
+                                    color: 'primary.main',
+                                    fontWeight: 600,
+                                    maxWidth: 120,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                      textDecoration: 'underline',
+                                      color: 'primary.dark',
+                                    }
+                                  }}
+                                  title={file.name}
+                                  onClick={() => handleOpenFile(file.url, file.name)}
+                                >
+                                  {file.name}
+                                </Typography>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenFile(file.url, file.name)}
+                                  sx={{
+                                    p: 0.5,
+                                    '&:hover': {
+                                      bgcolor: 'primary.main',
+                                      color: 'white',
+                                    }
+                                  }}
+                                  title="เปิดไฟล์"
+                                >
+                                  <GetAppIcon fontSize="small" />
+                                </IconButton>
+                              </Stack>
+                            ))}
+                            {pub.files.length > 2 && (
+                              <Typography variant="caption" color="text.secondary">
+                                +{pub.files.length - 2} ไฟล์เพิ่มเติม
+                              </Typography>
+                            )}
+                          </Stack>
+                        ) : (
+                          <Typography color="text.disabled" variant="body2">
+                            ไม่มีไฟล์
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Button
